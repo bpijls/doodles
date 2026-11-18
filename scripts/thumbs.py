@@ -19,13 +19,18 @@ class _QuietHandler(SimpleHTTPRequestHandler):
         pass
 
 
+class _QuietServer(ThreadingHTTPServer):
+    def handle_error(self, request, client_address):
+        pass  # a page closed mid-request (broken pipe): harmless
+
+
 def capture(pages_dir: Path, thumbs_dir: Path, entries: list[dict]) -> list[str]:
     """Capture one thumbnail per entry ({"slug", "href"} with href under pages/). Returns slugs done."""
     from playwright.sync_api import Error, sync_playwright  # imported lazily: only needed here
 
     thumbs_dir.mkdir(exist_ok=True)
     handler = functools.partial(_QuietHandler, directory=str(pages_dir))
-    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    server = _QuietServer(("127.0.0.1", 0), handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     base = f"http://127.0.0.1:{server.server_address[1]}/"
     done = []

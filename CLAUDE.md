@@ -17,7 +17,24 @@ pages/*.html ──scripts/build.py──> _site/ (index.html + doodles.json + p
   making thumbnails: `uv venv && uv pip install -r requirements.txt && .venv/bin/playwright install
   chromium-headless-shell`, then `.venv/bin/python scripts/build.py`. Without Playwright the build skips them.
 - `scripts/build.py --rethumb <slug>[,<slug>] | all` — regenerate thumbnails; `--plan` lists what would be
-  made; `--no-thumbs` makes none; `--no-push` keeps new thumbnails local (use it for previews). In CI: Actions → "Deploy to GitHub Pages" → Run workflow → `rethumb`.
+  made; `--no-thumbs` makes none; `--no-push` keeps new thumbnails local (use it for previews);
+  `--out DIR` builds elsewhere; `--check` lints and tests after building. In CI: Actions → "Deploy to GitHub Pages" → Run workflow → `rethumb`.
+
+## Tests
+
+```bash
+uv venv && uv pip install -r requirements-dev.txt && .venv/bin/playwright install chromium-headless-shell
+.venv/bin/python scripts/build.py --check --no-push   # build, then ruff + doodle lint + pytest
+.venv/bin/python -m pytest -q                          # tests only (builds its own copy in a temp dir)
+.venv/bin/python -m ruff check .
+```
+
+- `tests/test_build.py` — build.py logic against a fake pages/ tree (no browser).
+- `tests/test_portal.py` — the portal in headless Chromium: cards, thumbnails, filter, tags, phone layout.
+- `tests/test_doodles.py` — **parametrised over every doodle**: no uncaught JS errors in the first 2 s, no
+  missing local files, backlink visible bottom-left and returning to `/`, backlink gone inside an iframe.
+- Doodle lint (`lint_doodles`) only warns: missing title / description / viewport / doctype.
+- CI runs `build.py --check`; any failure — including one broken doodle — blocks the whole deploy.
 
 ## Architecture
 
@@ -27,6 +44,9 @@ index.template.html       portal page; build.py replaces the `/*DOODLES*/[]` mar
 scripts/build.py          scans pages/, reads <title>, meta description/keywords, git first-commit date;
                           injects the back-to-portal link into each doodle in _site/
 scripts/thumbs.py         Playwright capture: serves pages/ locally, 1200x750 layout -> 600x375 JPEG
+tests/                    pytest suite; conftest builds the site into a temp dir and serves it
+ruff.toml, pytest.ini     lint (line length 120) and test config
+requirements-dev.txt      pytest + ruff on top of requirements.txt
 scripts/dns.py            TransIP CNAME helper; runs from ~/projects/hva/pagelink with its venv + .env
 add.sh                    add + commit + pull --rebase + push helper
 thumbs/<slug>.jpg         committed thumbnails (copied into _site/thumbs/)

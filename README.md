@@ -46,6 +46,19 @@ Local thumbnails need Playwright: `uv venv && uv pip install -r requirements.txt
 python3 scripts/build.py --no-push && python3 -m http.server -d _site 8000
 ```
 
+## Checks
+
+Every deploy lints and tests the site first, and **a doodle that throws a JavaScript error, is missing a
+local file, or breaks the back-link stops the deploy** (the run fails on GitHub; the live site stays as it
+was). Run the same checks locally before pushing:
+
+```bash
+uv venv && uv pip install -r requirements-dev.txt && .venv/bin/playwright install chromium-headless-shell
+.venv/bin/python scripts/build.py --check --no-push
+```
+
+Missing titles, descriptions or viewport tags only give warnings.
+
 ## DNS
 
 `doodles.feib.nl` is a CNAME to `bpijls.github.io.` at TransIP; see `scripts/dns.py`.

@@ -11,7 +11,7 @@ on:
         default: ""
 
 permissions:
-  contents: write  # commit new thumbnails back to main
+  contents: write  # build.py pushes new thumbnails back to main
   pages: write
   id-token: write
 
@@ -32,28 +32,31 @@ jobs:
         with:
           fetch-depth: 0  # build.py dates doodles by their first commit
 
-      - name: Which thumbnails are needed?
-        id: plan
-        run: |
-          todo=$(python3 scripts/build.py --plan ${RETHUMB:+--rethumb $RETHUMB})
-          echo "$todo"
-          echo "needed=$([ -n "$todo" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-
-      - if: steps.plan.outputs.needed == 'true'
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
-      - if: steps.plan.outputs.needed == 'true'
-        name: Install Playwright
-        run: |
-          pip install -r requirements.txt
-          python -m playwright install --with-deps chromium-headless-shell
+          cache-dependency-path: requirements*.txt
+      - run: pip install -r requirements-dev.txt
 
-      # Also commits and pushes new/deleted thumbnails back to main (the thumbnail cache);
-      # a failed push only warns. Needs `contents: write` above.
-      - name: Build
-        run: python3 scripts/build.py ${RETHUMB:+--rethumb $RETHUMB}
+      - name: Cache Playwright browser
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
+      - name: Install Playwright browser
+        run: |
+          if [ "${{ steps.pw-cache.outputs.cache-hit }}" = "true" ]; then
+            python -m playwright install-deps chromium-headless-shell
+          else
+            python -m playwright install --with-deps chromium-headless-shell
+          fi
+
+      # Makes missing thumbnails and pushes them back to main (the cache; a failed push only warns),
+      # builds _site/, then lints (ruff + doodle checks) and runs pytest. Fails = no deploy.
+      - name: Build, lint and test
+        run: python scripts/build.py --check ${RETHUMB:+--rethumb $RETHUMB}
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

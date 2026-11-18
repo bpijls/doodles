@@ -7,19 +7,20 @@ first git commit (falls back to mtime).
 
 Thumbnails live in thumbs/<slug>.jpg (committed). Only doodles without one get a new thumbnail, unless
 --rethumb names them. New, changed or deleted thumbnails are committed (thumbs/ only) and pushed back
-to the repo as a cache, unless --no-push. Making thumbnails needs Playwright (requirements.txt); everything else is stdlib,
-and without Playwright the build still works, just without new thumbnails.
+to the repo as a cache, unless --no-push. Making thumbnails needs Playwright (requirements.txt);
+everything else is stdlib, and without Playwright the build still works, just without new thumbnails.
+--check also lints and runs the tests (requirements-dev.txt).
 """
 
 import argparse
 import html
-import os
-import sys
 import json
+import os
 import re
 import shutil
 import subprocess
-from datetime import datetime, timezone
+import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -50,7 +51,7 @@ def added(path: Path) -> datetime:
             return datetime.fromisoformat(out[-1])
     except (subprocess.CalledProcessError, FileNotFoundError):
         pass
-    return datetime.fromtimestamp(path.stat().st_mtime, timezone.utc)
+    return datetime.fromtimestamp(path.stat().st_mtime, UTC)
 
 
 def collect() -> list[dict]:
@@ -174,6 +175,58 @@ def push_thumbs() -> None:
         print(f"  WARNING: could not push thumbnails ({' '.join(err.cmd[1:3])}): {msg[0] if msg else err}")
 
 
+def write_site(entries: list[dict], out: Path) -> None:
+    """Write the portal, doodles (with backlink), thumbnails and extras into `out` (replaced)."""
+    for e in entries:
+        if (THUMBS / f"{e['slug']}.jpg").exists():
+            e["thumb"] = f"thumbs/{e['slug']}.jpg"
+    if out.exists():
+        shutil.rmtree(out)
+    shutil.copytree(PAGES, out / "pages", ignore=shutil.ignore_patterns(".*"))
+    for e in entries:
+        href = out / e["href"]
+        add_backlink(href / "index.html" if e["href"].endswith("/") else href)
+    if THUMBS.exists():
+        shutil.copytree(THUMBS, out / "thumbs")
+    for extra in ("CNAME", "favicon.svg"):
+        if (ROOT / extra).exists():
+            shutil.copy(ROOT / extra, out / extra)
+    (out / "doodles.json").write_text(json.dumps(entries, indent=2))
+    template = (ROOT / "index.template.html").read_text(encoding="utf-8")
+    data = json.dumps(entries).replace("</", "<\\/")
+    (out / "index.html").write_text(template.replace("/*DOODLES*/[]", data), encoding="utf-8")
+
+
+def lint_doodles(entries: list[dict]) -> list[str]:
+    """Problems that make a doodle look bad on the portal or on a phone. Returned as warnings."""
+    problems = []
+    for e in entries:
+        file = PAGES / (e["href"].removeprefix("pages/") + ("index.html" if e["href"].endswith("/") else ""))
+        text = file.read_text(encoding="utf-8", errors="replace")
+        if not TITLE_RE.search(text):
+            problems.append(f"{e['slug']}: no <title> (the card shows the slug)")
+        if not e["description"]:
+            problems.append(f'{e["slug"]}: no <meta name="description"> (the card has no text)')
+        if not meta(text, "viewport"):
+            problems.append(f'{e["slug"]}: no <meta name="viewport"> (tiny on phones)')
+        if not re.search(r"<!doctype html>", text, re.I):
+            problems.append(f"{e['slug']}: no <!doctype html> (renders in quirks mode)")
+    return problems
+
+
+def run_checks() -> bool:
+    """Lint (ruff on the Python, lint_doodles on the pages) and run the test suite. True if all pass."""
+    print("== lint: ruff", flush=True)
+    ok = subprocess.run([sys.executable, "-m", "ruff", "check", "."], cwd=ROOT).returncode == 0
+    print("== lint: doodles", flush=True)
+    for problem in lint_doodles(collect()):
+        print(f"  warning: {problem}", flush=True)
+    print("== tests: pytest", flush=True)
+    ok &= subprocess.run([sys.executable, "-m", "pytest", "-q"], cwd=ROOT).returncode == 0
+    print("== checks", "passed" if ok else "FAILED", flush=True)
+    return ok
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--rethumb", nargs="+", default=[], metavar="SLUG",
@@ -183,6 +236,9 @@ def main() -> None:
                     help="only print the slugs that would get a thumbnail, one per line, and exit")
     ap.add_argument("--no-push", action="store_true",
                     help="don't commit and push new or deleted thumbnails (default: push them as a cache)")
+    ap.add_argument("--out", type=Path, default=OUT, help="output directory (default: _site/)")
+    ap.add_argument("--check", action="store_true",
+                    help="after building, lint and run the tests (requirements-dev.txt); exit 1 if they fail")
     args = ap.parse_args()
     rethumb = [s.strip() for a in args.rethumb for s in a.split(",") if s.strip()]
 
@@ -193,25 +249,11 @@ def main() -> None:
     update_thumbs(entries, rethumb, not args.no_thumbs)
     if not args.no_push:
         push_thumbs()
-    for e in entries:
-        if (THUMBS / f"{e['slug']}.jpg").exists():
-            e["thumb"] = f"thumbs/{e['slug']}.jpg"
-    if OUT.exists():
-        shutil.rmtree(OUT)
-    shutil.copytree(PAGES, OUT / "pages", ignore=shutil.ignore_patterns(".*"))
-    for e in entries:
-        href = OUT / e["href"]
-        add_backlink(href / "index.html" if e["href"].endswith("/") else href)
-    if THUMBS.exists():
-        shutil.copytree(THUMBS, OUT / "thumbs")
-    for extra in ("CNAME", "favicon.svg"):
-        if (ROOT / extra).exists():
-            shutil.copy(ROOT / extra, OUT / extra)
-    (OUT / "doodles.json").write_text(json.dumps(entries, indent=2))
-    template = (ROOT / "index.template.html").read_text(encoding="utf-8")
-    data = json.dumps(entries).replace("</", "<\\/")
-    (OUT / "index.html").write_text(template.replace("/*DOODLES*/[]", data), encoding="utf-8")
-    print(f"built {len(entries)} doodle(s) into {OUT.relative_to(ROOT)}/")
+    out = args.out.resolve()
+    write_site(entries, out)
+    print(f"built {len(entries)} doodle(s) into {out}/", flush=True)
+    if args.check and not run_checks():
+        sys.exit(1)
 
 
 if __name__ == "__main__":

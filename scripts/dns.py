@@ -12,10 +12,9 @@ import sys
 from pathlib import Path
 
 import httpx
-from dotenv import dotenv_values
-
 from app.config import _decode_key
 from app.transip import TransIP
+from dotenv import dotenv_values
 
 ENV_FILE = os.environ.get("PAGELINK_ENV", str(Path.cwd() / ".env"))
 DOMAIN, NAME, TARGET = "feib.nl", "doodles", "bpijls.github.io."
