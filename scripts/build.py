@@ -6,12 +6,14 @@ Title comes from <title>, description from <meta name="description">, date from 
 first git commit (falls back to mtime).
 
 Thumbnails live in thumbs/<slug>.jpg (committed). Only doodles without one get a new thumbnail, unless
---rethumb names them. Making thumbnails needs Playwright (requirements.txt); everything else is stdlib,
+--rethumb names them. New, changed or deleted thumbnails are committed (thumbs/ only) and pushed back
+to the repo as a cache, unless --no-push. Making thumbnails needs Playwright (requirements.txt); everything else is stdlib,
 and without Playwright the build still works, just without new thumbnails.
 """
 
 import argparse
 import html
+import os
 import sys
 import json
 import re
@@ -141,6 +143,37 @@ def update_thumbs(entries: list[dict], rethumb: list[str], enabled: bool) -> Non
               "(uv venv && uv pip install -r requirements.txt && .venv/bin/playwright install chromium-headless-shell)")
 
 
+def git(*args: str, check: bool = True) -> subprocess.CompletedProcess:
+    return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, check=check)
+
+
+def push_thumbs() -> None:
+    """Commit thumbs/ (only that path, whatever else is staged) and push it, so the next build reuses
+    the thumbnails instead of making them again. A failed push only warns: the build still succeeds."""
+    try:
+        if git("rev-parse", "--is-inside-work-tree", check=False).returncode != 0:
+            return
+        git("add", "-A", "--", "thumbs")
+        if git("diff", "--cached", "--quiet", "--", "thumbs", check=False).returncode == 0:
+            return  # nothing new
+        ident = []
+        if os.environ.get("GITHUB_ACTIONS") == "true":
+            ident = ["-c", "user.name=github-actions[bot]",
+                     "-c", "user.email=41898282+github-actions[bot]@users.noreply.github.com"]
+        git(*ident, "commit", "-q", "-m", "Update thumbnails", "--", "thumbs")
+        # A detached HEAD (e.g. a workflow run on a tag) has no branch to push to.
+        branch = git("symbolic-ref", "--short", "-q", "HEAD", check=False).stdout.strip() or "main"
+        if git("push", "-q", "origin", f"HEAD:{branch}", check=False).returncode != 0:
+            # Remote moved ahead: rebase and retry. Only here can --autostash touch local work
+            # (it keeps uncommitted changes, but staged ones come back unstaged).
+            git(*ident, "pull", "-q", "--rebase", "--autostash", "origin", branch)
+            git("push", "-q", "origin", f"HEAD:{branch}")
+        print(f"  pushed thumbnails to origin/{branch}")
+    except subprocess.CalledProcessError as err:
+        msg = (err.stderr or err.stdout or "").strip().splitlines()
+        print(f"  WARNING: could not push thumbnails ({' '.join(err.cmd[1:3])}): {msg[0] if msg else err}")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--rethumb", nargs="+", default=[], metavar="SLUG",
@@ -148,6 +181,8 @@ def main() -> None:
     ap.add_argument("--no-thumbs", action="store_true", help="don't make any thumbnails")
     ap.add_argument("--plan", action="store_true",
                     help="only print the slugs that would get a thumbnail, one per line, and exit")
+    ap.add_argument("--no-push", action="store_true",
+                    help="don't commit and push new or deleted thumbnails (default: push them as a cache)")
     args = ap.parse_args()
     rethumb = [s.strip() for a in args.rethumb for s in a.split(",") if s.strip()]
 
@@ -156,6 +191,8 @@ def main() -> None:
         print("\n".join(e["slug"] for e in thumbs_todo(entries, rethumb)))
         return
     update_thumbs(entries, rethumb, not args.no_thumbs)
+    if not args.no_push:
+        push_thumbs()
     for e in entries:
         if (THUMBS / f"{e['slug']}.jpg").exists():
             e["thumb"] = f"thumbs/{e['slug']}.jpg"

@@ -35,14 +35,15 @@ have `thumbs/<slug>.jpg` yet and commits it back to `main` (so `git pull` after 
 thumbnails are never redone unless you ask:
 
 - GitHub: Actions → *Deploy to GitHub Pages* → *Run workflow*, fill in `rethumb` (`my-thing`, `a,b` or `all`)
-- locally: `.venv/bin/python scripts/build.py --rethumb my-thing`, then commit `thumbs/`
+- locally: `.venv/bin/python scripts/build.py --rethumb my-thing` (commits and pushes `thumbs/` itself;
+  add `--no-push` to keep them local)
 
 Local thumbnails need Playwright: `uv venv && uv pip install -r requirements.txt && .venv/bin/playwright install chromium-headless-shell`.
 
 ## Preview locally
 
 ```bash
-python3 scripts/build.py && python3 -m http.server -d _site 8000
+python3 scripts/build.py --no-push && python3 -m http.server -d _site 8000
 ```
 
 ## DNS

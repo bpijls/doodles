@@ -13,11 +13,11 @@ pages/*.html ──scripts/build.py──> _site/ (index.html + doodles.json + p
 ## Running / adding
 
 - `./add.sh <file.html|dir> [slug]` — copy into `pages/`, commit, push (`-n` = copy only).
-- `python3 scripts/build.py && python3 -m http.server -d _site 8000` — local preview. Stdlib only, except
+- `python3 scripts/build.py --no-push && python3 -m http.server -d _site 8000` — local preview. Stdlib only, except
   making thumbnails: `uv venv && uv pip install -r requirements.txt && .venv/bin/playwright install
   chromium-headless-shell`, then `.venv/bin/python scripts/build.py`. Without Playwright the build skips them.
 - `scripts/build.py --rethumb <slug>[,<slug>] | all` — regenerate thumbnails; `--plan` lists what would be
-  made; `--no-thumbs` makes none. In CI: Actions → "Deploy to GitHub Pages" → Run workflow → `rethumb`.
+  made; `--no-thumbs` makes none; `--no-push` keeps new thumbnails local (use it for previews). In CI: Actions → "Deploy to GitHub Pages" → Run workflow → `rethumb`.
 
 ## Architecture
 
@@ -45,7 +45,9 @@ CNAME                     doodles.feib.nl (copied into _site/)
   (a `<doodles-backlink>` element with a shadow root, before the last `</body>`) into each entry page in
   `_site/` only. It skips itself when the doodle is framed. Other files of a multi-file doodle are left alone.
 - Thumbnails are made only for doodles without `thumbs/<slug>.jpg`, or when named in `--rethumb`. CI makes
-  them and commits them back to main as github-actions[bot] (GITHUB_TOKEN pushes don't trigger a new run);
+  them. `build.py` itself commits `thumbs/` (that path only) and pushes it back as the cache — as
+  github-actions[bot] in CI (GITHUB_TOKEN pushes don't trigger a new run), as you locally. A failed push
+  only warns;
   it installs Playwright only when `--plan` says something is needed. Thumbnails of removed doodles are
   deleted by the build. Shots come from `pages/` (no injected backlink), light color scheme.
 - Because CI commits to main, pull before pushing (add.sh does).
