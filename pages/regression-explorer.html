@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Regression Explorer</title>
+  <meta name="description" content="Interactive visualisation of linear and logistic regression with a cost-landscape heatmap and gradient descent controls.">
+  <meta name="keywords" content="machine learning, regression, gradient descent, visualisation, p5.js">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap');
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      background: #080810;
+      color: #d8d8f0;
+      font-family: 'IBM Plex Mono', monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+      gap: 0;
+    }
+
+    h1 {
+      font-weight: 600;
+      font-size: 1.05rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #7eb8f7;
+      margin-bottom: 5px;
+    }
+    .subtitle {
+      font-size: 0.68rem;
+      color: #424860;
+      letter-spacing: 0.04em;
+      margin-bottom: 12px;
+    }
+
+    #canvas-container canvas {
+      display: block;
+      border-radius: 6px 6px 0 0;
+    }
+
+    /* ── Controls bar ────────────────────────────── */
+    #controls {
+      width: 800px;
+      background: #0c0c18;
+      border: 1px solid #1c2038;
+      border-top: none;
+      border-radius: 0 0 6px 6px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 9px 16px;
+      flex-wrap: nowrap;
+    }
+
+    /* Mode selector */
+    #mode-select {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.68rem;
+      letter-spacing: 0.06em;
+      background: #12122a;
+      color: #a0c8f8;
+      border: 1px solid #2a3460;
+      border-radius: 5px;
+      padding: 5px 8px;
+      cursor: pointer;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%234a6090'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      padding-right: 24px;
+      flex-shrink: 0;
+    }
+    #mode-select:focus { border-color: #4a70b0; }
+
+    .sep { width:1px; height:24px; background:#1a1e34; flex-shrink:0; }
+
+    /* Icon buttons */
+    .ctrl-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.66rem;
+      letter-spacing: 0.07em;
+      background: #12122a;
+      color: #7eb8f7;
+      border: 1px solid #2a3460;
+      border-radius: 5px;
+      padding: 5px 11px;
+      cursor: pointer;
+      transition: background 0.12s, border-color 0.12s;
+      white-space: nowrap;
+      flex-shrink: 0;
+      user-select: none;
+    }
+    .ctrl-btn:disabled { color: #252845; border-color: #151828; cursor: not-allowed; }
+    .ctrl-btn:not(:disabled):hover { background: #1a2048; border-color: #3a5080; }
+    .ctrl-btn.active { background: #14285a; border-color: #4a7ac0; color: #b0d4ff; }
+    .ctrl-btn svg { width:10px; height:10px; fill:currentColor; flex-shrink:0; }
+
+    /* Alpha slider */
+    .slider-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 0;
+    }
+    .slider-label {
+      font-size: 0.66rem;
+      color: #404868;
+      white-space: nowrap;
+      transition: color 0.15s;
+    }
+    .slider-label.on { color: #7ea8d8; }
+    .slider-label em { font-style: italic; color: #7eb8f7; }
+    input[type=range] {
+      -webkit-appearance: none; appearance: none;
+      flex: 1; min-width: 60px;
+      height: 3px; background: #1a1e38; border-radius: 2px;
+      outline: none; cursor: pointer;
+    }
+    input[type=range]:disabled { opacity: 0.25; cursor: not-allowed; }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px; height: 12px; border-radius: 50%;
+      background: #3a70c0; border: 1.5px solid #6aa0f0; cursor: pointer;
+    }
+    input[type=range]:disabled::-webkit-slider-thumb { background: #252845; border-color: #252845; }
+    #alpha-val {
+      font-size: 0.66rem;
+      color: #7eb8f7;
+      min-width: 50px;
+      text-align: right;
+    }
+
+    /* Info row */
+    #info-row {
+      width: 800px;
+      display: flex;
+      gap: 20px;
+      margin-top: 10px;
+      font-size: 0.67rem;
+      color: #3a4460;
+    }
+    #info-row span { color: #6a90c8; }
+  </style>
+</head>
+<body>
+  <h1>Regression Explorer</h1>
+  <p class="subtitle">Left: click to add · click point to remove · Right: click/drag to set (w,&thinsp;b)</p>
+
+  <div id="canvas-container"></div>
+
+  <div id="controls">
+    <!-- Mode selector -->
+    <select id="mode-select">
+      <option value="linear">Linear Regression</option>
+      <option value="logistic">Logistic Regression</option>
+    </select>
+
+    <div class="sep"></div>
+
+    <!-- GD buttons -->
+    <button class="ctrl-btn" id="play-btn" disabled>
+      <svg id="icon-play"  viewBox="0 0 10 10"><polygon points="1,0 9,5 1,10"/></svg>
+      <svg id="icon-pause" viewBox="0 0 10 10" style="display:none"><rect x="1" y="0" width="3" height="10"/><rect x="6" y="0" width="3" height="10"/></svg>
+      <span id="play-label">Play</span>
+    </button>
+    <button class="ctrl-btn" id="step-btn" disabled>
+      <svg viewBox="0 0 12 10"><polygon points="0,0 7,5 0,10"/><rect x="9" y="0" width="3" height="10"/></svg>Step
+    </button>
+    <button class="ctrl-btn" id="reset-btn" disabled>
+      <svg viewBox="0 0 12 12"><path d="M6,1 A5,5 0 1,1 1,6 M1,1 L1,6 L6,6" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>Reset
+    </button>
+
+    <div class="sep"></div>
+
+    <!-- Alpha slider -->
+    <div class="slider-group">
+      <span class="slider-label" id="alpha-label"><em>α</em>&nbsp;lr</span>
+      <input type="range" id="alpha-slider" min="-5" max="-0.3" step="0.05" value="-2" disabled>
+      <span id="alpha-val">1.00e-2</span>
+    </div>
+  </div>
+
+  <div id="info-row">
+    <div>J: <span id="cost-disp">—</span></div>
+    <div>w: <span id="w-disp">—</span></div>
+    <div>b: <span id="b-disp">—</span></div>
+    <div>steps: <span id="steps-disp">0</span></div>
+    <div id="mode-hint" style="margin-left:auto;color:#2a3050"></div>
+  </div>
+
+<script>
+// ── Global play state ──────────────────────────────────────────────────────────
+let gdPlaying = false, playInterval = null;
+
+function stopPlay() {
+  gdPlaying = false;
+  clearInterval(playInterval); playInterval = null;
+  document.getElementById('icon-play').style.display  = 'block';
+  document.getElementById('icon-pause').style.display = 'none';
+  document.getElementById('play-label').textContent   = 'Play';
+  document.getElementById('play-btn').classList.remove('active');
+}
+function startPlay() {
+  gdPlaying = true;
+  document.getElementById('icon-play').style.display  = 'none';
+  document.getElementById('icon-pause').style.display = 'block';
+  document.getElementById('play-label').textContent   = 'Pause';
+  document.getElementById('play-btn').classList.add('active');
+  playInterval = setInterval(() => { window._gdStep && window._gdStep(); }, 40);
+}
+
+document.getElementById('play-btn').addEventListener('click', () => {
+  if (gdPlaying) stopPlay(); else startPlay();
+});
+document.getElementById('step-btn').addEventListener('click', () => {
+  stopPlay(); window._gdStep && window._gdStep();
+});
+document.getElementById('reset-btn').addEventListener('click', () => {
+  stopPlay(); window._gdReset && window._gdReset();
+});
+
+// Mode change resets everything
+document.getElementById('mode-select').addEventListener('change', () => {
+  stopPlay(); window._modeChange && window._modeChange();
+});
+
+// Alpha display
+const alphaSlider = document.getElementById('alpha-slider');
+const alphaValEl  = document.getElementById('alpha-val');
+function fmtAlpha() {
+  alphaValEl.textContent = Math.pow(10, parseFloat(alphaSlider.value)).toExponential(2);
+}
+alphaSlider.addEventListener('input', fmtAlpha);
+fmtAlpha();
+
+// ── p5 sketch ─────────────────────────────────────────────────────────────────
+new p5(function(p) {
+  const W = 800, H = 400, PAD = 44, MID = W / 2;
+  const LEFT_W = MID, RIGHT_W = MID;
+  const GRID = 80, HIT = 10;
+
+  // Parameter space
+  const wMin = -4, wMax = 4;
+  const bMin = -3, bMax = 3;
+
+  // Data: {x,y} both in [0,1]; for logistic y is 0 or 1 stored as 0.0 / 1.0
+  let dataPoints = [];   // {x, y}
+  let mode = 'linear';   // 'linear' | 'logistic'
+
+  // Selection
+  let selW = 0.5, selB = 0.5, hasSelection = false;
+  let isDraggingRight = false;
+
+  // Cost map
+  let minCost = 0, maxCost = 1, costDirty = true;
+  let leftBuf, rightBuf, costImg;
+
+  // GD
+  let gdTrace = [], gdSteps = 0;
+
+  // ── coord helpers ──────────────────────────────────────────────────────────
+  function d2l(dx, dy) { return { x: PAD + dx*(LEFT_W-2*PAD), y: H-PAD - dy*(H-2*PAD) }; }
+  function l2d(px, py) { return { x: (px-PAD)/(LEFT_W-2*PAD), y: 1-(py-PAD)/(H-2*PAD) }; }
+  function p2r(w01, b01) { return { x: PAD + w01*(RIGHT_W-2*PAD), y: H-PAD - b01*(H-2*PAD) }; }
+  function r2p(px, py)   { return { w: (px-PAD)/(RIGHT_W-2*PAD), b: 1-(py-PAD)/(H-2*PAD) }; }
+  function inRight(mx, my) {
+    let lx = mx - MID;
+    return mx >= MID && lx >= PAD && lx <= RIGHT_W-PAD && my >= PAD && my <= H-PAD;
+  }
+  function nearPt(mx, my) {
+    let best = -1, bd = HIT;
+    for (let i = 0; i < dataPoints.length; i++) {
+      let pp = d2l(dataPoints[i].x, dataPoints[i].y);
+      let d  = Math.hypot(pp.x-mx, pp.y-my);
+      if (d < bd) { bd = d; best = i; }
+    }
+    return best;
+  }
+
+  // ── actual param values ────────────────────────────────────────────────────
+  function w01ToA(w01) { return wMin + w01*(wMax-wMin); }
+  function b01ToA(b01) { return bMin + b01*(bMax-bMin); }
+  function wATo01(w)   { return (w-wMin)/(wMax-wMin); }
+  function bATo01(b)   { return (b-bMin)/(bMax-bMin); }
+
+  // ── model math ────────────────────────────────────────────────────────────
+  // Data x in [0,1] → actual x in [-3,3]; y: linear=[0,1]→[-2,2]; logistic=0 or 1
+  function ax(pt) { return pt.x * 6 - 3; }
+  function ay_linear(pt) { return pt.y * 4 - 2; }
+  // for logistic, pt.y is already 0 or 1
+
+  function sigmoid(z) { return 1 / (1 + Math.exp(-z)); }
+
+  // Linear cost: MSE
+  function costLinear(w, b) {
+    if (!dataPoints.length) return 0;
+    let s = 0;
+    for (let pt of dataPoints) { let e = w*ax(pt)+b - ay_linear(pt); s += e*e; }
+    return s / dataPoints.length;
+  }
+  function gradLinear(w, b) {
+    let dw = 0, db = 0, n = dataPoints.length;
+    for (let pt of dataPoints) { let e = w*ax(pt)+b - ay_linear(pt); dw += e*ax(pt); db += e; }
+    return { dw: 2*dw/n, db: 2*db/n };
+  }
+
+  // Logistic cost: Binary cross-entropy
+  function costLogistic(w, b) {
+    if (!dataPoints.length) return 0;
+    let s = 0, n = dataPoints.length;
+    for (let pt of dataPoints) {
+      let z = w*ax(pt) + b;
+      let yhat = sigmoid(z);
+      let yi = pt.y; // 0 or 1
+      // clamp to avoid log(0)
+      yhat = Math.max(1e-15, Math.min(1-1e-15, yhat));
+      s += -(yi * Math.log(yhat) + (1-yi) * Math.log(1-yhat));
+    }
+    return s / n;
+  }
+  function gradLogistic(w, b) {
+    let dw = 0, db = 0, n = dataPoints.length;
+    for (let pt of dataPoints) {
+      let err = sigmoid(w*ax(pt)+b) - pt.y;
+      dw += err * ax(pt); db += err;
+    }
+    return { dw: dw/n, db: db/n };
+  }
+
+  function getCost(w, b) { return mode === 'linear' ? costLinear(w,b) : costLogistic(w,b); }
+  function getGrad(w, b) { return mode === 'linear' ? gradLinear(w,b) : gradLogistic(w,b); }
+  function getAlpha()    { return Math.pow(10, parseFloat(document.getElementById('alpha-slider').value)); }
+
+  // ── GD step ───────────────────────────────────────────────────────────────
+  function doStep() {
+    if (!hasSelection || !dataPoints.length) return;
+    let a = getAlpha();
+    let w = w01ToA(selW), b = b01ToA(selB);
+    let { dw, db } = getGrad(w, b);
+    selW = p.constrain(wATo01(w - a*dw), 0, 1);
+    selB = p.constrain(bATo01(b - a*db), 0, 1);
+    gdTrace.push({ w01: selW, b01: selB });
+    gdSteps++;
+    updateInfo();
+  }
+
+  // ── cost heatmap ──────────────────────────────────────────────────────────
+  function rebuildCost() {
+    let mn = Infinity, mx2 = -Infinity;
+    let vals = new Float32Array(GRID*GRID);
+    for (let wi = 0; wi < GRID; wi++) {
+      for (let bi = 0; bi < GRID; bi++) {
+        let c = getCost(w01ToA(wi/(GRID-1)), b01ToA(bi/(GRID-1)));
+        vals[bi*GRID+wi] = c;
+        if (c < mn) mn = c; if (c > mx2) mx2 = c;
+      }
+    }
+    minCost = mn; maxCost = mx2 === mn ? mn+1 : mx2;
+    costDirty = false;
+    costImg.loadPixels();
+    for (let wi = 0; wi < GRID; wi++) {
+      for (let bi = 0; bi < GRID; bi++) {
+        let t = Math.sqrt((vals[bi*GRID+wi]-minCost)/(maxCost-minCost));
+        let r, g, b;
+        if (t < 0.33)      { let s=t/0.33;       r=p.lerp(10,30,s);  g=p.lerp(20,160,s);  b=p.lerp(60,180,s); }
+        else if (t < 0.66) { let s=(t-0.33)/0.33; r=p.lerp(30,240,s); g=p.lerp(160,210,s); b=p.lerp(180,30,s); }
+        else               { let s=(t-0.66)/0.34; r=p.lerp(240,255,s);g=p.lerp(210,255,s); b=p.lerp(30,255,s); }
+        let idx = ((GRID-1-bi)*GRID+wi)*4;
+        costImg.pixels[idx]=r; costImg.pixels[idx+1]=g; costImg.pixels[idx+2]=b; costImg.pixels[idx+3]=255;
+      }
+    }
+    costImg.updatePixels();
+  }
+
+  // ── draw left ─────────────────────────────────────────────────────────────
+  function drawLeft() {
+    let g = leftBuf;
+    g.clear(); g.background(12, 12, 20);
+
+    // Grid
+    g.stroke(28, 32, 52); g.strokeWeight(1);
+    for (let i = 0; i <= 4; i++) {
+      g.line(PAD+i*(LEFT_W-2*PAD)/4, PAD, PAD+i*(LEFT_W-2*PAD)/4, H-PAD);
+      g.line(PAD, PAD+i*(H-2*PAD)/4, LEFT_W-PAD, PAD+i*(H-2*PAD)/4);
+    }
+
+    let ax0 = d2l(0, 0);
+
+    if (mode === 'linear') {
+      // Axes
+      g.stroke(55, 65, 105); g.strokeWeight(1.5);
+      g.line(PAD, ax0.y, LEFT_W-PAD, ax0.y);
+      g.line(ax0.x, PAD, ax0.x, H-PAD);
+      g.noStroke(); g.fill(55,68,105); g.textFont('IBM Plex Mono'); g.textSize(9);
+      g.textAlign(g.LEFT); g.text('y', PAD-16, ax0.y+4);
+      g.textAlign(g.CENTER); g.text('x', ax0.x, H-PAD+14);
+
+      // Regression line
+      if (hasSelection) {
+        let w=w01ToA(selW), b=b01ToA(selB);
+        // endpoints in data-normalised space: dx in [0,1] → ax in [-3,3]
+        let p0 = d2l(0, (w*(-3)+b+2)/4);
+        let p1 = d2l(1, (w*3+b+2)/4);
+        g.stroke(100, 210, 120, 210); g.strokeWeight(2);
+        g.drawingContext.save();
+        g.drawingContext.rect(PAD, PAD, LEFT_W-2*PAD, H-2*PAD);
+        g.drawingContext.clip();
+        g.line(p0.x, p0.y, p1.x, p1.y);
+        g.drawingContext.restore();
+
+        // Residuals
+        for (let pt of dataPoints) {
+          let pred = w*ax(pt)+b;
+          let pp  = d2l(pt.x, pt.y);
+          let pp2 = d2l(pt.x, (pred+2)/4);
+          g.stroke(255, 90, 70, 90); g.strokeWeight(1);
+          g.line(pp.x, pp.y, pp2.x, pp2.y);
+        }
+      }
+
+      // Points (continuous y, coloured blue)
+      let hi = nearPt(p.mouseX, p.mouseY);
+      for (let i = 0; i < dataPoints.length; i++) {
+        let pt = dataPoints[i], pp = d2l(pt.x, pt.y);
+        if (i === hi) { g.noFill(); g.stroke(255,80,80,220); g.strokeWeight(1.5); g.ellipse(pp.x,pp.y,16,16); }
+        g.fill(i===hi?255:110, i===hi?100:175, i===hi?100:255);
+        g.noStroke(); g.ellipse(pp.x, pp.y, 8, 8);
+        g.fill(200,230,255); g.ellipse(pp.x, pp.y, 3, 3);
+      }
+
+    } else {
+      // Logistic: draw decision boundary line (sigmoid(w*x+b)=0.5 → w*x+b=0 → x=-b/w)
+      // x-axis only; y axis is class label 0/1 shown at bottom/top strip
+      // Show a horizontal separator at y=0.5 in data space (class boundary)
+      let yMid = d2l(0, 0.5).y; // midpoint of panel
+      g.stroke(40, 48, 80); g.strokeWeight(1); g.setLineDash && g.setLineDash([4,4]);
+      g.line(PAD, yMid, LEFT_W-PAD, yMid);
+
+      // Class labels
+      g.noStroke(); g.fill(40,55,90); g.textFont('IBM Plex Mono'); g.textSize(8);
+      g.textAlign(g.LEFT);
+      g.text('class 1', PAD+4, PAD+14);
+      g.text('class 0', PAD+4, H-PAD-4);
+
+      // Decision boundary: wx+b=0 → x_norm = (-b/w + 3)/6
+      if (hasSelection) {
+        let w=w01ToA(selW), b=b01ToA(selB);
+        // Draw sigmoid curve y = sigmoid(w*x_actual + b)
+        g.noFill(); g.stroke(100, 210, 120, 200); g.strokeWeight(2);
+        g.beginShape();
+        for (let px = PAD; px <= LEFT_W-PAD; px += 2) {
+          let xNorm = (px-PAD)/(LEFT_W-2*PAD);
+          let xA    = xNorm*6 - 3;
+          let yProb = sigmoid(w*xA + b);
+          let pyPx  = H-PAD - yProb*(H-2*PAD);
+          g.vertex(px, pyPx);
+        }
+        g.endShape();
+
+        // Decision boundary vertical line
+        if (Math.abs(w) > 0.01) {
+          let xBound = (-b/w + 3)/6;
+          if (xBound >= 0 && xBound <= 1) {
+            let bpx = PAD + xBound*(LEFT_W-2*PAD);
+            g.stroke(255, 200, 60, 160); g.strokeWeight(1.5);
+            g.drawingContext.setLineDash([5,4]);
+            g.line(bpx, PAD, bpx, H-PAD);
+            g.drawingContext.setLineDash([]);
+          }
+        }
+      }
+
+      // Points: y=0 at bottom, y=1 at top, with small jitter for clarity
+      let hi = nearPt(p.mouseX, p.mouseY);
+      for (let i = 0; i < dataPoints.length; i++) {
+        let pt = dataPoints[i];
+        // Display y position: class 1 near top, class 0 near bottom (with small jitter)
+        let dispY = pt.y === 1 ? 0.85 + (Math.sin(i*17.3)*0.04) : 0.15 + (Math.sin(i*17.3)*0.04);
+        let pp = d2l(pt.x, dispY);
+        let isClass1 = pt.y > 0.5;
+        // Colour: class1=teal, class0=orange
+        let cr = isClass1 ?  60 : 255;
+        let cg = isClass1 ? 200 : 145;
+        let cb = isClass1 ? 180 :  40;
+        if (i === hi) { g.noFill(); g.stroke(255,80,80,220); g.strokeWeight(1.5); g.ellipse(pp.x,pp.y,16,16); }
+        g.fill(i===hi?255:cr, i===hi?100:cg, i===hi?100:cb);
+        g.noStroke(); g.ellipse(pp.x, pp.y, 9, 9);
+        g.fill(220,240,255); g.ellipse(pp.x, pp.y, 3, 3);
+      }
+
+      // Axis label
+      g.noStroke(); g.fill(55,68,105); g.textFont('IBM Plex Mono'); g.textSize(9);
+      g.textAlign(g.CENTER); g.text('x', ax0.x, H-PAD+14);
+    }
+
+    // Panel label
+    g.noStroke(); g.fill(55,68,105); g.textFont('IBM Plex Mono'); g.textSize(9);
+    g.textAlign(g.CENTER);
+    g.text(mode === 'linear' ? 'DATA SPACE' : 'DATA SPACE  (class 0 / 1)', LEFT_W/2, 14);
+
+    // Border + divider
+    g.noFill(); g.stroke(35,42,70); g.strokeWeight(1); g.rect(0,0,LEFT_W-1,H-1);
+    g.stroke(45,55,90); g.strokeWeight(2); g.line(LEFT_W-1,0,LEFT_W-1,H);
+  }
+
+  // ── draw right ────────────────────────────────────────────────────────────
+  function drawRight() {
+    let g = rightBuf;
+    g.clear(); g.background(12,12,20);
+    let mW = RIGHT_W-2*PAD, mH = H-2*PAD;
+
+    if (!dataPoints.length) {
+      g.fill(45,55,80); g.noStroke(); g.textFont('IBM Plex Mono'); g.textSize(11);
+      g.textAlign(g.CENTER, g.CENTER);
+      g.text('Add data points\nto see cost landscape', RIGHT_W/2, H/2);
+      g.noFill(); g.stroke(35,42,70); g.strokeWeight(1); g.rect(0,0,RIGHT_W-1,H-1);
+      return;
+    }
+
+    g.image(costImg, PAD, PAD, mW, mH);
+
+    // Grid overlay
+    g.stroke(0,0,0,28); g.strokeWeight(0.5);
+    for (let i = 0; i <= 6; i++) {
+      g.line(PAD+i*mW/6, PAD, PAD+i*mW/6, H-PAD);
+      g.line(PAD, PAD+i*mH/6, RIGHT_W-PAD, PAD+i*mH/6);
+    }
+
+    // Zero axes
+    let wx = PAD + wATo01(0)*mW, by = H-PAD - bATo01(0)*mH;
+    g.stroke(255,255,255,55); g.strokeWeight(1);
+    g.line(wx, PAD, wx, H-PAD); g.line(PAD, by, RIGHT_W-PAD, by);
+
+    // GD trace
+    if (gdTrace.length > 1) {
+      let n = gdTrace.length;
+      for (let i = 1; i < n; i++) {
+        let f = i/(n-1);
+        let a = p2r(gdTrace[i-1].w01, gdTrace[i-1].b01);
+        let b2= p2r(gdTrace[i].w01,   gdTrace[i].b01);
+        g.stroke(p.lerp(100,210,f), p.lerp(60,80,f), p.lerp(200,255,f), p.lerp(70,230,f));
+        g.strokeWeight(1.5); g.line(a.x,a.y,b2.x,b2.y);
+      }
+      // Start dot
+      let s0 = p2r(gdTrace[0].w01, gdTrace[0].b01);
+      g.fill(100,160,255,160); g.noStroke(); g.ellipse(s0.x,s0.y,6,6);
+      // Recent dots (every N)
+      let step2 = Math.max(1, Math.floor(n/50));
+      for (let i = 1; i < n; i += step2) {
+        let f = i/(n-1), pp = p2r(gdTrace[i].w01, gdTrace[i].b01);
+        g.fill(p.lerp(120,220,f), p.lerp(70,90,f), p.lerp(200,255,f), p.lerp(70,200,f));
+        g.noStroke(); g.ellipse(pp.x, pp.y, 3, 3);
+      }
+    }
+
+    // Selection dot
+    if (hasSelection) {
+      let pp = p2r(selW, selB);
+      let ring = isDraggingRight ? 22 : 16;
+      g.noFill(); g.stroke(255,255,255, isDraggingRight?240:180);
+      g.strokeWeight(isDraggingRight?2:1.5); g.ellipse(pp.x,pp.y,ring,ring);
+      g.fill(255,255,255); g.noStroke(); g.ellipse(pp.x,pp.y,isDraggingRight?7:5,isDraggingRight?7:5);
+      let w=w01ToA(selW), b=b01ToA(selB);
+      g.fill(200,228,255); g.noStroke(); g.textFont('IBM Plex Mono'); g.textSize(9); g.textAlign(g.LEFT);
+      let tx=pp.x+10, ty=pp.y-10;
+      if (tx+80>RIGHT_W-PAD) tx=pp.x-90;
+      g.text(`w=${w.toFixed(2)}`,tx,ty); g.text(`b=${b.toFixed(2)}`,tx,ty+12);
+    }
+
+    // Axis labels
+    g.fill(150,162,192); g.noStroke(); g.textFont('IBM Plex Mono'); g.textSize(9);
+    g.textAlign(g.CENTER);
+    let costLabel = mode === 'linear' ? 'COST  J(w,b) — MSE' : 'COST  J(w,b) — log-loss';
+    g.text(costLabel, RIGHT_W/2, 14);
+    g.text('w  →', RIGHT_W-PAD/2, H-PAD+14);
+    g.textAlign(g.RIGHT); g.text('b', PAD-6, PAD+4);
+    g.textSize(8); g.fill(75,85,125);
+    g.textAlign(g.CENTER);
+    for (let i=0;i<=3;i++) g.text((wMin+i*(wMax-wMin)/3).toFixed(1), PAD+(i/3)*mW, H-PAD+10);
+    g.textAlign(g.RIGHT);
+    for (let i=0;i<=3;i++) g.text((bMin+i*(bMax-bMin)/3).toFixed(1), PAD-4, H-PAD-(i/3)*mH+3);
+    g.noFill(); g.stroke(35,42,70); g.strokeWeight(1); g.rect(0,0,RIGHT_W-1,H-1);
+  }
+
+  // ── info & controls ───────────────────────────────────────────────────────
+  function updateInfo() {
+    if (hasSelection && dataPoints.length) {
+      let w = w01ToA(selW), b = b01ToA(selB);
+      document.getElementById('cost-disp').textContent  = getCost(w,b).toFixed(5);
+      document.getElementById('w-disp').textContent     = w.toFixed(4);
+      document.getElementById('b-disp').textContent     = b.toFixed(4);
+    } else {
+      document.getElementById('cost-disp').textContent = '—';
+      document.getElementById('w-disp').textContent    = '—';
+      document.getElementById('b-disp').textContent    = '—';
+    }
+    document.getElementById('steps-disp').textContent = gdSteps;
+
+    // Hint
+    let hint = mode === 'logistic'
+      ? 'left-click → class 0 · right-click → class 1'
+      : 'double-click left panel to clear all';
+    document.getElementById('mode-hint').textContent = hint;
+
+    updateCtrl();
+  }
+
+  function updateCtrl() {
+    let on = hasSelection && dataPoints.length > 0;
+    document.getElementById('play-btn').disabled        = !on;
+    document.getElementById('step-btn').disabled        = !on;
+    document.getElementById('reset-btn').disabled       = !on;
+    document.getElementById('alpha-slider').disabled    = !on;
+    document.getElementById('alpha-label').className = 'slider-label' + (on ? ' on' : '');
+  }
+
+  // ── selection helper ──────────────────────────────────────────────────────
+  function pickRight(mx, my) {
+    let lx = mx - MID, param = r2p(lx, my);
+    selW = p.constrain(param.w, 0, 1); selB = p.constrain(param.b, 0, 1);
+    hasSelection = true;
+    gdTrace = [{ w01: selW, b01: selB }]; gdSteps = 0;
+    stopPlay(); updateInfo();
+  }
+
+  function clearTrace() {
+    gdTrace = hasSelection ? [{ w01: selW, b01: selB }] : [];
+    gdSteps = 0; updateInfo();
+  }
+
+  // ── p5 setup / draw ───────────────────────────────────────────────────────
+  p.setup = function() {
+    let cnv = p.createCanvas(W, H);
+    cnv.parent('canvas-container');
+    leftBuf  = p.createGraphics(LEFT_W, H);
+    rightBuf = p.createGraphics(RIGHT_W, H);
+    costImg  = p.createImage(GRID, GRID);
+    p.colorMode(p.RGB);
+    updateInfo();
+  };
+
+  p.draw = function() {
+    p.background(10, 10, 18);
+    if (costDirty && dataPoints.length) rebuildCost();
+    drawLeft(); drawRight();
+    p.image(leftBuf, 0, 0); p.image(rightBuf, MID, 0);
+
+    if (isDraggingRight || inRight(p.mouseX, p.mouseY)) p.cursor('crosshair');
+    else if (nearPt(p.mouseX, p.mouseY) !== -1) p.cursor('pointer');
+    else if (p.mouseX>=PAD&&p.mouseX<=LEFT_W-PAD&&p.mouseY>=PAD&&p.mouseY<=H-PAD) p.cursor('cell');
+    else p.cursor(p.ARROW);
+  };
+
+  // ── mouse ─────────────────────────────────────────────────────────────────
+  p.mousePressed = function() {
+    // Suppress default right-click menu (handled in contextmenu event)
+    let mx = p.mouseX, my = p.mouseY;
+
+    if (mx >= 0 && mx < LEFT_W && my >= 0 && my < H) {
+      if (mx>=PAD && mx<=LEFT_W-PAD && my>=PAD && my<=H-PAD) {
+        let idx = nearPt(mx, my);
+        if (idx !== -1) {
+          // Remove point
+          dataPoints.splice(idx, 1); costDirty = true;
+          if (!dataPoints.length) { hasSelection = false; stopPlay(); }
+          clearTrace();
+        } else {
+          let d = l2d(mx, my);
+          if (d.x >= 0 && d.x <= 1 && d.y >= 0 && d.y <= 1) {
+            if (mode === 'linear') {
+              dataPoints.push({ x: d.x, y: d.y });
+            } else {
+              // Left-click → class 0, right-click → class 1 (handled via contextmenu)
+              // p.mouseButton is p.LEFT / p.RIGHT
+              let cls = (p.mouseButton === p.RIGHT) ? 1.0 : 0.0;
+              dataPoints.push({ x: d.x, y: cls });
+            }
+            costDirty = true;
+            clearTrace();
+          }
+        }
+      }
+    } else if (inRight(mx, my)) {
+      isDraggingRight = true; pickRight(mx, my);
+    }
+    return false; // prevent context menu on right-click inside canvas
+  };
+
+  p.mouseDragged = function() {
+    if (isDraggingRight) {
+      let lx = p.constrain(p.mouseX-MID, PAD, RIGHT_W-PAD);
+      let cy = p.constrain(p.mouseY, PAD, H-PAD);
+      let pm = r2p(lx, cy);
+      selW = p.constrain(pm.w,0,1); selB = p.constrain(pm.b,0,1);
+      hasSelection = true; gdTrace=[{w01:selW,b01:selB}]; gdSteps=0;
+      stopPlay(); updateInfo();
+    }
+  };
+
+  p.mouseReleased = function() { isDraggingRight = false; };
+
+  p.doubleClicked = function() {
+    if (p.mouseX>=0&&p.mouseX<LEFT_W) {
+      dataPoints=[]; hasSelection=false; costDirty=true;
+      gdTrace=[]; gdSteps=0; stopPlay(); updateInfo();
+    }
+  };
+
+  // Suppress browser context menu on canvas (needed for right-click class 1)
+  document.getElementById('canvas-container').addEventListener('contextmenu', e => e.preventDefault());
+
+  // ── expose to outer scope ─────────────────────────────────────────────────
+  window._gdStep = function() { doStep(); };
+  window._gdReset = function() { clearTrace(); };
+  window._modeChange = function() {
+    mode = document.getElementById('mode-select').value;
+    dataPoints = []; hasSelection = false; costDirty = true;
+    gdTrace = []; gdSteps = 0;
+    updateInfo();
+  };
+});
+</script>
+</body>
+</html>
