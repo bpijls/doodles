@@ -31,6 +31,7 @@ echo "added $dest"
 if (( push )); then
   git add "$dest"
   git commit -q -m "Add doodle: $slug"
+  git pull -q --rebase  # CI commits thumbnails back to main
   git push -q
   echo "published: https://doodles.feib.nl/${dest}$([[ -d $dest ]] && echo /)"
 fi

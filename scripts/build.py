@@ -3,10 +3,16 @@
 
 A doodle is either pages/<slug>.html or pages/<slug>/index.html (for multi-file artifacts).
 Title comes from <title>, description from <meta name="description">, date from the file's
-first git commit (falls back to mtime). Stdlib only.
+first git commit (falls back to mtime).
+
+Thumbnails live in thumbs/<slug>.jpg (committed). Only doodles without one get a new thumbnail, unless
+--rethumb names them. Making thumbnails needs Playwright (requirements.txt); everything else is stdlib,
+and without Playwright the build still works, just without new thumbnails.
 """
 
+import argparse
 import html
+import sys
 import json
 import re
 import shutil
@@ -17,6 +23,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 PAGES = ROOT / "pages"
 OUT = ROOT / "_site"
+THUMBS = ROOT / "thumbs"
 
 TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.S | re.I)
 META_RE = re.compile(r"<meta\s[^>]*>", re.I)
@@ -105,14 +112,61 @@ def add_backlink(path: Path) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def thumbs_todo(entries: list[dict], rethumb: list[str]) -> list[dict]:
+    """Doodles without a thumbnail, plus the ones in `rethumb` ("all" = every doodle)."""
+    unknown = set(rethumb) - {e["slug"] for e in entries} - {"all"}
+    if unknown:
+        raise SystemExit(f"--rethumb: no such doodle: {', '.join(sorted(unknown))}")
+    return [e for e in entries
+            if "all" in rethumb or e["slug"] in rethumb or not (THUMBS / f"{e['slug']}.jpg").exists()]
+
+
+def update_thumbs(entries: list[dict], rethumb: list[str], enabled: bool) -> None:
+    """Make the thumbnails thumbs_todo() asks for; existing ones are otherwise left alone.
+    Thumbnails of removed doodles are deleted."""
+    slugs = {e["slug"] for e in entries}
+    for orphan in THUMBS.glob("*.jpg"):
+        if orphan.stem not in slugs:
+            orphan.unlink()
+            print(f"  removed thumbnail of deleted doodle: {orphan.stem}")
+    todo = thumbs_todo(entries, rethumb)
+    if not todo or not enabled:
+        return
+    try:
+        sys.path.insert(0, str(Path(__file__).parent))
+        from thumbs import capture
+        capture(PAGES, THUMBS, todo)
+    except ImportError:
+        print(f"  playwright not installed: skipped {len(todo)} thumbnail(s) "
+              "(uv venv && uv pip install -r requirements.txt && .venv/bin/playwright install chromium-headless-shell)")
+
+
 def main() -> None:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--rethumb", nargs="+", default=[], metavar="SLUG",
+                    help="regenerate these thumbnails even if they exist ('all' for every doodle)")
+    ap.add_argument("--no-thumbs", action="store_true", help="don't make any thumbnails")
+    ap.add_argument("--plan", action="store_true",
+                    help="only print the slugs that would get a thumbnail, one per line, and exit")
+    args = ap.parse_args()
+    rethumb = [s.strip() for a in args.rethumb for s in a.split(",") if s.strip()]
+
     entries = collect()
+    if args.plan:
+        print("\n".join(e["slug"] for e in thumbs_todo(entries, rethumb)))
+        return
+    update_thumbs(entries, rethumb, not args.no_thumbs)
+    for e in entries:
+        if (THUMBS / f"{e['slug']}.jpg").exists():
+            e["thumb"] = f"thumbs/{e['slug']}.jpg"
     if OUT.exists():
         shutil.rmtree(OUT)
     shutil.copytree(PAGES, OUT / "pages", ignore=shutil.ignore_patterns(".*"))
     for e in entries:
         href = OUT / e["href"]
         add_backlink(href / "index.html" if e["href"].endswith("/") else href)
+    if THUMBS.exists():
+        shutil.copytree(THUMBS, OUT / "thumbs")
     for extra in ("CNAME", "favicon.svg"):
         if (ROOT / extra).exists():
             shutil.copy(ROOT / extra, OUT / extra)

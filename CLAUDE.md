@@ -13,7 +13,11 @@ pages/*.html ──scripts/build.py──> _site/ (index.html + doodles.json + p
 ## Running / adding
 
 - `./add.sh <file.html|dir> [slug]` — copy into `pages/`, commit, push (`-n` = copy only).
-- `python3 scripts/build.py && python3 -m http.server -d _site 8000` — local preview. Stdlib only.
+- `python3 scripts/build.py && python3 -m http.server -d _site 8000` — local preview. Stdlib only, except
+  making thumbnails: `uv venv && uv pip install -r requirements.txt && .venv/bin/playwright install
+  chromium-headless-shell`, then `.venv/bin/python scripts/build.py`. Without Playwright the build skips them.
+- `scripts/build.py --rethumb <slug>[,<slug>] | all` — regenerate thumbnails; `--plan` lists what would be
+  made; `--no-thumbs` makes none. In CI: Actions → "Deploy to GitHub Pages" → Run workflow → `rethumb`.
 
 ## Architecture
 
@@ -22,8 +26,11 @@ pages/                    one doodle per <slug>.html, or <slug>/index.html for m
 index.template.html       portal page; build.py replaces the `/*DOODLES*/[]` marker with the JSON list
 scripts/build.py          scans pages/, reads <title>, meta description/keywords, git first-commit date;
                           injects the back-to-portal link into each doodle in _site/
+scripts/thumbs.py         Playwright capture: serves pages/ locally, 1200x750 layout -> 600x375 JPEG
 scripts/dns.py            TransIP CNAME helper; runs from ~/projects/hva/pagelink with its venv + .env
-add.sh                    add + commit + push helper
+add.sh                    add + commit + pull --rebase + push helper
+thumbs/<slug>.jpg         committed thumbnails (copied into _site/thumbs/)
+requirements.txt          playwright, pinned; only needed for thumbnails
 CNAME                     doodles.feib.nl (copied into _site/)
 .github/workflows/pages.yml  build + deploy on push to main (GitHub-hosted runner: repo is public)
 ```
@@ -37,3 +44,8 @@ CNAME                     doodles.feib.nl (copied into _site/)
 - Doodle files in `pages/` are never modified. At build time `build.py` injects a "← doodles" link
   (a `<doodles-backlink>` element with a shadow root, before the last `</body>`) into each entry page in
   `_site/` only. It skips itself when the doodle is framed. Other files of a multi-file doodle are left alone.
+- Thumbnails are made only for doodles without `thumbs/<slug>.jpg`, or when named in `--rethumb`. CI makes
+  them and commits them back to main as github-actions[bot] (GITHUB_TOKEN pushes don't trigger a new run);
+  it installs Playwright only when `--plan` says something is needed. Thumbnails of removed doodles are
+  deleted by the build. Shots come from `pages/` (no injected backlink), light color scheme.
+- Because CI commits to main, pull before pushing (add.sh does).

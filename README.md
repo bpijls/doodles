@@ -28,6 +28,17 @@ The portal card uses, from the page itself:
 Every doodle gets a small "← doodles" link back to the portal in the bottom-left corner. It is added
 at build time; the files in `pages/` stay exactly as you downloaded them.
 
+## Thumbnails
+
+New doodles get a screenshot thumbnail automatically: the deploy makes one for every doodle that doesn't
+have `thumbs/<slug>.jpg` yet and commits it back to `main` (so `git pull` after adding). Existing
+thumbnails are never redone unless you ask:
+
+- GitHub: Actions → *Deploy to GitHub Pages* → *Run workflow*, fill in `rethumb` (`my-thing`, `a,b` or `all`)
+- locally: `.venv/bin/python scripts/build.py --rethumb my-thing`, then commit `thumbs/`
+
+Local thumbnails need Playwright: `uv venv && uv pip install -r requirements.txt && .venv/bin/playwright install chromium-headless-shell`.
+
 ## Preview locally
 
 ```bash

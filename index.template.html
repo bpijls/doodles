@@ -33,10 +33,15 @@ header p { color: var(--muted); margin: 10px 0 28px; }
 .tag[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
 ul { list-style: none; padding: 0; margin: 28px 0 0;
   display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
-li a { display: flex; flex-direction: column; height: 100%; padding: 16px 18px 14px;
+li a { display: flex; flex-direction: column; height: 100%; padding: 0 0 14px; overflow: hidden;
   background: var(--card); border: 1px solid var(--line); border-radius: 12px;
   color: inherit; text-decoration: none; transition: border-color .15s, transform .15s; }
 li a:hover, li a:focus-visible { border-color: var(--accent); transform: translateY(-2px); outline: none; }
+li .thumb { aspect-ratio: 16 / 10; margin-bottom: 14px; border-bottom: 1px solid var(--line);
+  background: linear-gradient(135deg, var(--line), var(--bg)); display: grid; place-items: center;
+  color: var(--muted); font: italic 600 2.4rem Georgia, serif; overflow: hidden; }
+li .thumb img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
+li h2, li p, li small { padding: 0 18px; }
 li h2 { font-size: 1.05rem; margin: 0 0 4px; line-height: 1.3; }
 li p { margin: 0 0 12px; color: var(--muted); font-size: .92rem; flex: 1; }
 li small { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
@@ -76,6 +81,9 @@ function render() {
     (!active || d.tags.includes(active)) &&
     (!needle || [d.title, d.description, d.slug, ...d.tags].join(" ").toLowerCase().includes(needle)));
   list.innerHTML = shown.map(d => `<li><a href="${esc(d.href)}">
+    <div class="thumb">${d.thumb
+      ? `<img src="${esc(d.thumb)}" alt="" loading="lazy" width="600" height="375">`
+      : esc(d.title.charAt(0).toUpperCase())}</div>
     <h2>${esc(d.title)}</h2><p>${esc(d.description)}</p><small>${fmt(d.date)}</small></a></li>`).join("");
   empty.hidden = shown.length > 0;
   tagBox.querySelectorAll(".tag").forEach(b => b.setAttribute("aria-pressed", String(b.textContent === active)));

@@ -4,9 +4,14 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      rethumb:
+        description: "Regenerate thumbnails: slugs (space or comma separated), or 'all'. Empty = only new doodles."
+        required: false
+        default: ""
 
 permissions:
-  contents: read
+  contents: write  # commit new thumbnails back to main
   pages: write
   id-token: write
 
@@ -20,11 +25,45 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      RETHUMB: ${{ inputs.rethumb }}  # via env, never interpolated into a script
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # build.py dates doodles by their first commit
-      - run: python3 scripts/build.py
+
+      - name: Which thumbnails are needed?
+        id: plan
+        run: |
+          todo=$(python3 scripts/build.py --plan ${RETHUMB:+--rethumb $RETHUMB})
+          echo "$todo"
+          echo "needed=$([ -n "$todo" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - if: steps.plan.outputs.needed == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - if: steps.plan.outputs.needed == 'true'
+        name: Install Playwright
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium-headless-shell
+
+      - name: Build
+        run: python3 scripts/build.py ${RETHUMB:+--rethumb $RETHUMB}
+
+      - name: Commit thumbnail changes  # new ones, and deletions for removed doodles
+        continue-on-error: true  # a push race must not block the deploy; the next run retries
+        run: |
+          git add -A thumbs
+          git diff --cached --quiet && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Update thumbnails"
+          git pull --rebase origin main
+          git push origin HEAD:main
+
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
