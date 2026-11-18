@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Curse of Dimensionality Explorer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+:root {
+  --bg:#f5f0e8; --paper:#faf8f4; --panel:#f0ebe0;
+  --border:#c8bfa8; --border2:#a89880;
+  --ink:#1a1410; --ink2:#3d3428;
+  --muted:#7a6e5f; --muted2:#b0a490;
+  --accent:#8b1a1a; --accent2:#1a4f8b; --accent3:#2d6b2d; --warn:#8b6914;
+  --rule:#c8bfa8;
+  --serif:'EB Garamond',Georgia,serif;
+  --mono:'JetBrains Mono','Courier New',monospace;
+  /* slice plane colours */
+  --col-x:#c0392b; --col-y:#1a4f8b; --col-z:#2d6b2d;
+}
+html,body,#root { width:100%; height:100vh; overflow:hidden; background:var(--bg); color:var(--ink); font-family:var(--serif); }
+.app { display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+
+/* HEADER */
+.app-header { height:40px; background:var(--paper); border-bottom:2px solid var(--ink2); display:flex; align-items:baseline; padding:0 16px; gap:16px; flex-shrink:0; }
+.app-title { font-family:var(--serif); font-size:15px; font-weight:600; color:var(--ink); line-height:40px; }
+.app-subtitle { font-size:12px; color:var(--muted); font-style:italic; }
+.header-note { margin-left:auto; font-size:11px; font-family:var(--mono); color:var(--accent); border:1px solid var(--accent); padding:2px 8px; border-radius:2px; background:rgba(139,26,26,.05); align-self:center; }
+
+/* BODY GRID */
+.body { flex:1; display:grid; grid-template-columns:210px 1fr 185px; overflow:hidden; min-height:0; }
+
+/* CONTROLS */
+.controls { background:var(--paper); border-right:1px solid var(--border); display:flex; flex-direction:column; overflow-y:auto; }
+.controls::-webkit-scrollbar { width:3px; }
+.controls::-webkit-scrollbar-thumb { background:var(--border); }
+.ctrl-section { padding:10px 11px; border-bottom:1px solid var(--rule); }
+.ctrl-lbl { font-family:var(--mono); font-size:8.5px; font-weight:500; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:7px; }
+.toggle-row { display:flex; border:1px solid var(--border2); border-radius:2px; overflow:hidden; }
+.tog { flex:1; padding:4px 0; font-family:var(--mono); font-size:10px; background:none; border:none; color:var(--muted); cursor:pointer; transition:all .12s; }
+.tog.on { background:var(--ink2); color:var(--paper); }
+.dim-row { display:flex; align-items:center; gap:8px; margin-bottom:5px; }
+.dim-btn { width:26px; height:26px; border-radius:2px; background:var(--panel); border:1px solid var(--border2); color:var(--ink2); font-size:15px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .1s; }
+.dim-btn:hover { background:var(--ink2); color:var(--paper); }
+.dim-num { font-family:var(--mono); font-size:30px; font-weight:500; color:var(--accent); min-width:36px; text-align:center; }
+.vol-badge { font-family:var(--mono); font-size:9px; padding:3px 7px; border-radius:2px; background:rgba(139,26,26,.07); border:1px solid rgba(139,26,26,.25); color:var(--accent); }
+.vol-badge.ok { background:rgba(26,79,139,.06); border-color:rgba(26,79,139,.22); color:var(--accent2); }
+.cf-select { width:100%; padding:4px 6px; font-family:var(--serif); font-size:12px; border:1px solid var(--border2); border-radius:2px; background:var(--paper); color:var(--ink); cursor:pointer; }
+.radio-list { display:flex; flex-direction:column; gap:2px; }
+.radio-item { display:flex; align-items:flex-start; gap:7px; padding:4px 6px; border-radius:2px; cursor:pointer; transition:background .1s; border:1px solid transparent; }
+.radio-item:hover { background:var(--panel); }
+.radio-item.sel { background:var(--panel); border-color:var(--border); }
+.radio-item input { margin-top:3px; accent-color:var(--accent); flex-shrink:0; }
+.radio-name { font-size:11px; font-weight:500; display:block; font-family:var(--serif); }
+.radio-desc { font-size:9px; color:var(--muted); display:block; margin-top:1px; font-family:var(--mono); }
+.srow { display:flex; align-items:center; gap:7px; margin-top:5px; }
+.srow label { font-family:var(--mono); font-size:9px; color:var(--muted); min-width:16px; }
+.srow input[type=range] { flex:1; accent-color:var(--accent2); }
+.srow .sv { font-family:var(--mono); font-size:9px; color:var(--accent2); min-width:30px; text-align:right; }
+.play-btns { display:flex; gap:5px; }
+.pbtn { flex:1; padding:5px 3px; font-family:var(--serif); font-size:11px; border:1px solid var(--border2); border-radius:2px; background:var(--paper); color:var(--ink2); cursor:pointer; transition:all .1s; }
+.pbtn:hover { background:var(--ink2); color:var(--paper); border-color:var(--ink2); }
+.pbtn.primary { background:var(--ink2); color:var(--paper); border-color:var(--ink2); font-weight:500; }
+.pbtn:disabled { opacity:.35; cursor:not-allowed; }
+.seed-row { display:flex; align-items:center; gap:6px; margin-top:5px; }
+.seed-val { font-family:var(--mono); font-size:9px; color:var(--accent2); }
+.seed-lbl { font-size:9px; color:var(--muted); font-family:var(--mono); }
+.manual-hint { font-family:var(--mono); font-size:9px; color:var(--warn); margin-top:5px; line-height:1.4; }
+
+/* CENTER */
+.center { display:flex; flex-direction:column; overflow:hidden; min-height:0; background:var(--bg); }
+.viz-row { flex:0 0 75%; display:grid; grid-template-columns:1fr 1fr 1fr; border-bottom:2px solid var(--border2); overflow:hidden; min-height:0; }
+.viz-panel { position:relative; overflow:hidden; border-right:1px solid var(--border); display:flex; flex-direction:column; background:var(--paper); }
+.viz-panel:last-child { border-right:none; }
+.viz-panel-header { font-family:var(--mono); font-size:8.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); padding:5px 9px; border-bottom:1px solid var(--rule); flex-shrink:0; display:flex; align-items:center; gap:8px; background:var(--panel); }
+.viz-stat { margin-left:auto; font-family:var(--mono); font-size:8px; color:var(--accent2); display:flex; gap:10px; }
+.viz-canvas-area { flex:1; position:relative; overflow:hidden; }
+
+/* overlay controls inside 3D panel */
+.vol-ctl { position:absolute; bottom:8px; right:8px; z-index:20; background:rgba(10,12,18,.82); border:1px solid #2a3a55; border-radius:2px; padding:5px 8px; display:flex; flex-direction:column; gap:3px; backdrop-filter:blur(3px); }
+.vol-ctl label { font-family:var(--mono); font-size:7px; color:#6a8aaa; letter-spacing:.1em; }
+.vol-ctl input[type=range] { width:75px; accent-color:#4a8fbf; }
+.vol-ctl .vval { font-family:var(--mono); font-size:8px; color:#4a8fbf; }
+
+/* SLIDERS ROW */
+.sliders-row { flex:0 0 25%; background:var(--paper); border-top:1px solid var(--rule); padding:7px 14px; display:flex; flex-direction:column; justify-content:center; overflow:hidden; }
+.sliders-header { font-family:var(--mono); font-size:8px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:5px; display:flex; gap:14px; flex-wrap:wrap; }
+.sliders-header .hx { color:var(--col-x); }
+.sliders-header .hy { color:var(--col-y); }
+.sliders-header .hz { color:var(--col-z); }
+.sliders-header .hN { color:var(--muted); }
+.dim-slider-row { display:flex; align-items:center; gap:10px; padding:2px 0; flex:1; }
+.dim-slider-lbl { font-family:var(--mono); font-size:9.5px; font-weight:500; min-width:22px; text-align:right; }
+.dim-slider-track { flex:1; }
+.dim-slider-track input[type=range] { width:100%; }
+.dim-slider-val { font-family:var(--mono); font-size:9px; min-width:38px; text-align:right; }
+.dim-slider-role { font-size:9px; min-width:100px; font-family:var(--mono); color:var(--muted2); }
+
+/* CONVERGENCE */
+.conv-panel { background:var(--paper); border-left:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; }
+.conv-header { font-family:var(--mono); font-size:8.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); padding:5px 9px; border-bottom:1px solid var(--rule); flex-shrink:0; background:var(--panel); }
+.conv-chart { flex:1; overflow:hidden; min-height:0; }
+.conv-stats { border-top:1px solid var(--rule); padding:7px 9px; flex-shrink:0; }
+.stat-tbl { width:100%; border-collapse:collapse; }
+.stat-tbl th { font-family:var(--mono); font-size:7.5px; color:var(--muted); letter-spacing:.08em; text-transform:uppercase; padding:2px 4px; border-bottom:1px solid var(--rule); text-align:left; }
+.stat-tbl td { font-family:var(--mono); font-size:10px; padding:2px 4px; }
+.cn { color:var(--accent); }
+.insight { border-top:1px solid var(--rule); padding:7px 9px; font-size:10.5px; color:var(--muted); line-height:1.55; flex-shrink:0; font-family:var(--serif); }
+.insight strong { color:var(--ink2); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+// ─── Perlin noise ──────────────────────────────────────────────────────────────
+const _perm = (() => {
+  const p = Array.from({length:256},(_,i)=>i);
+  for(let i=255;i>0;i--){const j=Math.floor((Math.sin(i*127.1)*43758.5453)%1*(i+1));[p[i],p[j]]=[p[j],p[i]];}
+  return [...p,...p];
+})();
+const _fade = t => t*t*t*(t*(t*6-15)+10);
+const _lerp = (a,b,t) => a+t*(b-a);
+function _g3(h,x,y,z){const u=h<8?x:y,v=h<4?y:(h===12||h===14)?x:z;return((h&1)?-u:u)+((h&2)?-v:v);}
+function _p3(x,y,z){
+  const X=Math.floor(x)&255,Y=Math.floor(y)&255,Z=Math.floor(z)&255;
+  x-=Math.floor(x);y-=Math.floor(y);z-=Math.floor(z);
+  const u=_fade(x),v=_fade(y),w=_fade(z);
+  const A=_perm[X]+Y,AA=_perm[A]+Z,AB=_perm[A+1]+Z,B=_perm[X+1]+Y,BA=_perm[B]+Z,BB=_perm[B+1]+Z;
+  return _lerp(_lerp(_lerp(_g3(_perm[AA],x,y,z),_g3(_perm[BA],x-1,y,z),u),_lerp(_g3(_perm[AB],x,y-1,z),_g3(_perm[BB],x-1,y-1,z),u),v),_lerp(_lerp(_g3(_perm[AA+1],x,y,z-1),_g3(_perm[BA+1],x-1,y,z-1),u),_lerp(_g3(_perm[AB+1],x,y-1,z-1),_g3(_perm[BB+1],x-1,y-1,z-1),u),v),w);
+}
+function perlinND(params){
+  const s=params.map(p=>p*0.7+2.5);
+  const n=params.length; let v=0,c=0;
+  for(let i=0;i<Math.min(n,8);i++){v+=_p3(s[i%n]??0,s[(i+1)%n]??0,s[(i+2)%n]??0);c++;}
+  return (v/c+1)/2;
+}
+
+// ─── Cost functions ────────────────────────────────────────────────────────────
+// params: [x, y, z, θ₄, ...]   x=params[0], y=params[1], z=params[2]
+const COST_FNS = {
+  quadratic:  {name:'Quadratic Bowl',     desc:'Single global minimum, no traps',          fn:p=>p.reduce((s,v)=>s+v*v,0)/p.length},
+  elongated:  {name:'Elongated Valley',   desc:'Narrow valley — direction matters',         fn:p=>p.reduce((s,v,i)=>s+(i===0?8:1)*v*v,0)/p.length},
+  rosenbrock: {name:'Rosenbrock',         desc:'Classic banana — curved valley',            fn:p=>{let s=0;for(let i=0;i<p.length-1;i++)s+=100*(p[i+1]-p[i]**2)**2+(1-p[i])**2;return Math.min(s/p.length/10,4);}},
+  rastrigin:  {name:'Rastrigin',          desc:'Dense local minima — hard for any optimizer',fn:p=>{const A=1.2;return(A*p.length+p.reduce((s,v)=>s+v*v-A*Math.cos(2*Math.PI*v*.8),0))/p.length;}},
+  perlin:     {name:'Perlin Landscape',   desc:'Smooth N-dimensional noise field',          fn:p=>perlinND(p)},
+  perlinRast: {name:'Perlin + Rastrigin', desc:'Noise over bumpy base — brutal landscape',  fn:p=>Math.max(0,p.reduce((s,v)=>s+v*v-Math.cos(2*Math.PI*v*.8),0)/p.length*.4+perlinND(p)*.6)},
+};
+
+// ─── Optimizer ────────────────────────────────────────────────────────────────
+function clamp(v,lo=-3,hi=3){return Math.max(lo,Math.min(hi,v));}
+function optimizerStep(pos,costFn,type,lr){
+  if(type==='random'){
+    const c=pos.map(v=>clamp(v+(Math.random()-.5)*.5));
+    return costFn(c)<costFn(pos)?c:pos;
+  }
+  const eps=.001,base=costFn(pos);
+  const grad=pos.map((v,i)=>{const p=[...pos];p[i]=v+eps;return(costFn(p)-base)/eps;});
+  return pos.map((v,i)=>clamp(v-lr*grad[i]));
+}
+function seededRand(s,i){let x=Math.sin(s*127.1+i*311.7)*43758.5453;return x-Math.floor(x);}
+function makeStart(n,seed,mxy){
+  return Array.from({length:n},(_,i)=>{
+    if(i===0&&mxy)return mxy[0];if(i===1&&mxy)return mxy[1];
+    return (seededRand(seed,i)-.5)*5.5;
+  });
+}
+
+// ─── Convergence chart ────────────────────────────────────────────────────────
+function ConvergenceChart({historyNd}){
+  const ref=useRef();
+  useEffect(()=>{
+    const el=ref.current;if(!el)return;
+    const W=el.clientWidth||170,H=el.clientHeight||160;
+    const m={t:10,r:8,b:22,l:32};const w=W-m.l-m.r,h=H-m.t-m.b;
+    d3.select(el).selectAll('*').remove();
+    const svg=d3.select(el).attr('width',W).attr('height',H);
+    const g=svg.append('g').attr('transform',`translate(${m.l},${m.t})`);
+    if(!historyNd.length)return;
+    const xs=d3.scaleLinear([0,Math.max(historyNd.length,10)],[0,w]);
+    const ys=d3.scaleLinear([0,Math.max(...historyNd,.01)*1.08],[h,0]);
+    g.selectAll('line.g').data(ys.ticks(4)).join('line').attr('class','g')
+      .attr('x1',0).attr('x2',w).attr('y1',d=>ys(d)).attr('y2',d=>ys(d)).attr('stroke','#c8bfa8').attr('stroke-width',.5);
+    if(historyNd.length>1)
+      g.append('path').datum(historyNd)
+        .attr('fill','none').attr('stroke','#8b1a1a').attr('stroke-width',1.5)
+        .attr('d',d3.line().x((_,i)=>xs(i)).y(d=>ys(d)).curve(d3.curveCatmullRom));
+    const axS=ax=>{ax.select('.domain').attr('stroke','#c8bfa8');ax.selectAll('text').attr('fill','#7a6e5f').attr('font-size',7).attr('font-family','JetBrains Mono');ax.selectAll('line').attr('stroke','#c8bfa8');};
+    g.append('g').attr('transform',`translate(0,${h})`).call(d3.axisBottom(xs).ticks(4).tickSize(2)).call(axS);
+    g.append('g').call(d3.axisLeft(ys).ticks(4).tickSize(2)).call(axS);
+    g.append('text').attr('x',w/2).attr('y',h+17).attr('text-anchor','middle').attr('fill','#7a6e5f').attr('font-size',8).attr('font-family','JetBrains Mono').text('iterations');
+  },[historyNd]);
+  return <svg ref={ref} style={{width:'100%',height:'100%',display:'block'}}/>;
+}
+
+// ─── 1D Plot: cost vs x, all others fixed by theta ───────────────────────────
+function Plot1D({costFn,dims,theta,pathNd,globalCostRange}){
+  const ref=useRef();const PTS=150;
+  useEffect(()=>{
+    const el=ref.current;if(!el)return;
+    const W=el.clientWidth,H=el.clientHeight;if(!W||!H)return;
+    const m={t:10,r:10,b:22,l:34};const w=W-m.l-m.r,h=H-m.t-m.b;
+    d3.select(el).selectAll('*').remove();
+    const svg=d3.select(el).attr('width',W).attr('height',H);
+    const g=svg.append('g').attr('transform',`translate(${m.l},${m.t})`);
+    // Build curve: vary x (dim 0), fix all others at current theta
+    const mkP=x=>Array.from({length:Math.max(dims,1)},(_,k)=>k===0?x:(theta[k]??0));
+    const data=Array.from({length:PTS+1},(_,i)=>{const x=-3+(i/PTS)*6;return{x,v:costFn(mkP(x))};});
+    const ext=globalCostRange&&globalCostRange[0]!==Infinity ? globalCostRange : d3.extent(data,d=>d.v);
+    const xs=d3.scaleLinear([-3,3],[0,w]);
+    const ys=d3.scaleLinear([ext[0],ext[1]],[h,0]);
+    // grid
+    g.selectAll('line.g').data(ys.ticks(4)).join('line').attr('class','g')
+      .attr('x1',0).attr('x2',w).attr('y1',d=>ys(d)).attr('y2',d=>ys(d)).attr('stroke','#c8bfa8').attr('stroke-width',.5);
+    // area + curve
+    g.append('path').datum(data)
+      .attr('d',d3.area().x(d=>xs(d.x)).y0(h).y1(d=>ys(d.v)).curve(d3.curveCatmullRom))
+      .attr('fill','rgba(26,79,139,.07)');
+    g.append('path').datum(data)
+      .attr('d',d3.line().x(d=>xs(d.x)).y(d=>ys(d.v)).curve(d3.curveCatmullRom))
+      .attr('fill','none').attr('stroke','#1a4f8b').attr('stroke-width',1.5);
+    // GD trail projected onto x
+    if(pathNd&&pathNd.length>1){
+      const td=pathNd.map(p=>({x:p[0],v:costFn(mkP(p[0]))}));
+      g.append('path').datum(td)
+        .attr('d',d3.line().x(d=>xs(d.x)).y(d=>ys(d.v)))
+        .attr('fill','none').attr('stroke','#8b1a1a').attr('stroke-width',1.3).attr('stroke-dasharray','3,2');
+      g.selectAll('circle.tr').data(td.slice(0,-1)).join('circle').attr('class','tr')
+        .attr('cx',d=>xs(d.x)).attr('cy',d=>ys(d.v)).attr('r',1.8).attr('fill','#8b1a1a').attr('opacity',.5);
+      const last=td[td.length-1];
+      g.append('circle').attr('cx',xs(last.x)).attr('cy',ys(last.v)).attr('r',4)
+        .attr('fill','#8b1a1a').attr('stroke','white').attr('stroke-width',1.5);
+    }
+    // theta[0] position marker
+    const cx=theta[0]??0,cv=costFn(mkP(cx));
+    g.append('line').attr('x1',xs(cx)).attr('x2',xs(cx)).attr('y1',0).attr('y2',h)
+      .attr('stroke','rgba(192,57,43,.5)').attr('stroke-width',1.2).attr('stroke-dasharray','4,3');
+    g.append('circle').attr('cx',xs(cx)).attr('cy',ys(cv)).attr('r',4.5)
+      .attr('fill','#c0392b').attr('stroke','white').attr('stroke-width',1.5);
+    // axes
+    const axS=ax=>{ax.select('.domain').attr('stroke','#c8bfa8');ax.selectAll('text').attr('fill','#7a6e5f').attr('font-size',7).attr('font-family','JetBrains Mono');ax.selectAll('line').attr('stroke','#c8bfa8');};
+    g.append('g').attr('transform',`translate(0,${h})`).call(d3.axisBottom(xs).ticks(4).tickSize(2)).call(axS);
+    g.append('g').call(d3.axisLeft(ys).ticks(4).tickSize(2)).call(axS);
+    g.append('text').attr('x',w/2).attr('y',h+17).attr('text-anchor','middle').attr('fill','#7a6e5f').attr('font-size',9).attr('font-family','JetBrains Mono').text('x  (θ₁)');
+    g.append('text').attr('transform','rotate(-90)').attr('x',-h/2).attr('y',-26).attr('text-anchor','middle').attr('fill','#7a6e5f').attr('font-size',9).attr('font-family','JetBrains Mono').text('cost');
+  },[costFn,dims,theta,pathNd,globalCostRange]);
+  return <svg ref={ref} style={{width:'100%',height:'100%',display:'block'}}/>;
+}
+
+// ─── 2D Heatmap: x (horizontal) vs y (vertical), fixed at z=theta[2], higher fixed ──
+// Lines: vertical at x=theta[0] (YZ-plane intersection, colour col-x=#c0392b)
+//        horizontal at y=theta[1] (XZ-plane intersection, colour col-y=#1a4f8b)
+// Dot at (theta[0], theta[1])
+function Plot2D({costFn,dims,theta,pathNd,manualMode,onClickPlace,globalCostRange}){
+  const ref=useRef();const RES=40;
+  useEffect(()=>{
+    const el=ref.current;if(!el)return;
+    const W=el.clientWidth,H=el.clientHeight;if(!W||!H)return;
+    const m={t:4,r:4,b:20,l:24};const w=W-m.l-m.r,h=H-m.t-m.b;
+    d3.select(el).selectAll('*').remove();
+    const svg=d3.select(el).attr('width',W).attr('height',H);
+    const g=svg.append('g').attr('transform',`translate(${m.l},${m.t})`);
+    const xs=d3.scaleLinear([-3,3],[0,w]);
+    const ys=d3.scaleLinear([-3,3],[h,0]);  // y increases upward visually
+    const step=6/RES;
+    // heatmap: x=dim0, y=dim1, z=theta[2], higher=theta[k]
+    const mkP=(x,y)=>Array.from({length:Math.max(dims,2)},(_,k)=>k===0?x:k===1?y:(theta[k]??0));
+    const data=[];
+    for(let i=0;i<=RES;i++)for(let j=0;j<=RES;j++){
+      const x=-3+i*step,y=-3+j*step;
+      data.push({x,y,v:costFn(mkP(x,y))});
+    }
+    const ext=globalCostRange&&globalCostRange[0]!==Infinity ? globalCostRange : d3.extent(data,d=>d.v);
+    const col=d3.scaleSequential(d3.interpolateYlOrBr).domain([ext[0],ext[1]]);
+    const cw=w/RES,ch=h/RES;
+    g.selectAll('rect.c').data(data).join('rect').attr('class','c')
+      .attr('x',d=>xs(d.x)-cw/2).attr('y',d=>ys(d.y)-ch/2)
+      .attr('width',cw+1).attr('height',ch+1).attr('fill',d=>col(d.v));
+    // axes
+    const axS=ax=>{ax.select('.domain').attr('stroke','#c8bfa8');ax.selectAll('text').attr('fill','#7a6e5f').attr('font-size',7).attr('font-family','JetBrains Mono');ax.selectAll('line').attr('stroke','#c8bfa8');};
+    g.append('g').attr('transform',`translate(0,${h})`).call(d3.axisBottom(xs).ticks(4).tickSize(2)).call(axS);
+    g.append('g').call(d3.axisLeft(ys).ticks(4).tickSize(2)).call(axS);
+    g.append('text').attr('x',w/2).attr('y',h+15).attr('text-anchor','middle').attr('fill','#7a6e5f').attr('font-size',8).attr('font-family','JetBrains Mono').text('x  (θ₁)');
+    g.append('text').attr('transform','rotate(-90)').attr('x',-h/2).attr('y',-17).attr('text-anchor','middle').attr('fill','#7a6e5f').attr('font-size',8).attr('font-family','JetBrains Mono').text('y  (θ₂)');
+    // YZ-plane intersection: vertical line at x = theta[0]  → colour #c0392b (x)
+    const tx=theta[0]??0;
+    g.append('line').attr('x1',xs(tx)).attr('x2',xs(tx)).attr('y1',0).attr('y2',h)
+      .attr('stroke','#c0392b').attr('stroke-width',1.5).attr('stroke-dasharray','5,3').attr('opacity',.85);
+    // XZ-plane intersection: horizontal line at y = theta[1] → colour #1a4f8b (y)
+    const ty=theta[1]??0;
+    g.append('line').attr('x1',0).attr('x2',w).attr('y1',ys(ty)).attr('y2',ys(ty))
+      .attr('stroke','#1a4f8b').attr('stroke-width',1.5).attr('stroke-dasharray','5,3').attr('opacity',.85);
+    // Intersection dot at (theta[0], theta[1])
+    g.append('circle').attr('cx',xs(tx)).attr('cy',ys(ty)).attr('r',5)
+      .attr('fill','white').attr('stroke','#2d6b2d').attr('stroke-width',2);
+    g.append('circle').attr('cx',xs(tx)).attr('cy',ys(ty)).attr('r',2.5).attr('fill','#2d6b2d');
+    // GD trail
+    if(pathNd&&pathNd.length>1){
+      g.append('path').datum(pathNd)
+        .attr('d',d3.line().x(p=>xs(p[0])).y(p=>ys(p[1])))
+        .attr('fill','none').attr('stroke','#8b1a1a').attr('stroke-width',1.5);
+      g.selectAll('circle.tr').data(pathNd.slice(0,-1)).join('circle').attr('class','tr')
+        .attr('cx',p=>xs(p[0])).attr('cy',p=>ys(p[1])).attr('r',1.8).attr('fill','#8b1a1a').attr('opacity',.55);
+      const last=pathNd[pathNd.length-1];
+      g.append('circle').attr('cx',xs(last[0])).attr('cy',ys(last[1])).attr('r',4.5)
+        .attr('fill','#8b1a1a').attr('stroke','white').attr('stroke-width',1.5);
+      const first=pathNd[0];
+      g.append('circle').attr('cx',xs(first[0])).attr('cy',ys(first[1])).attr('r',4)
+        .attr('fill','none').attr('stroke','#2d6b2d').attr('stroke-width',1.5).attr('stroke-dasharray','3,2');
+    }
+    if(manualMode&&onClickPlace){
+      svg.style('cursor','crosshair');
+      svg.on('click',function(e){
+        const [mx,my]=d3.pointer(e);
+        const px=xs.invert(mx-m.l),py=ys.invert(my-m.t);
+        if(px>=-3&&px<=3&&py>=-3&&py<=3)onClickPlace([px,py]);
+      });
+    }else svg.style('cursor','default');
+  },[costFn,dims,theta,pathNd,manualMode,globalCostRange]);
+  return <svg ref={ref} style={{width:'100%',height:'100%',display:'block'}}/>;
+}
+
+// ─── 3D Voxel Volume ──────────────────────────────────────────────────────────
+// World coords: x=right, y=into-screen, z=up
+// THREE coords: X=right, Y=up, Z=out-of-screen
+// Mapping: threeX=worldX, threeY=worldZ, threeZ=−worldY
+//
+// Slice planes (all perpendicular to their axis, shown as semi-transparent quads):
+//   YZ-plane at x=θ₁ : threeX=θ₁, plane normal along threeX → rotate around threeY by 90°
+//   ZX-plane at y=θ₂ : worldY=θ₂ → threeZ=−θ₂, plane normal along threeZ → no rotation needed (PlaneGeometry default faces Z)
+//   XY-plane at z=θ₃ : worldZ=θ₃ → threeY=θ₃, plane normal along threeY → rotate around threeX by 90°
+//
+// Intersection dot: placed at (threeX=θ₁, threeY=θ₃, threeZ=−θ₂)
+//
+// Voxel opacity: nonlinear — t^power * maxOpacity, where t=(v-vmin)/(vmax-vmin)
+// Voxels with t≈0 are made invisible (opacity threshold cutoff)
+function VoxelVolume({costFn,dims,theta,opacity,voxelRes,pathNd}){
+  const mountRef=useRef();
+  const internals=useRef({});   // renderer, scene, camera, voxels, planes, dot, updateCam
+
+  // ── Build scene ──────────────────────────────────────────────
+  useEffect(()=>{
+    const el=mountRef.current;if(!el)return;
+    const W=el.clientWidth,H=el.clientHeight;if(!W||!H)return;
+
+    const renderer=new THREE.WebGLRenderer({antialias:true});
+    renderer.setSize(W,H);renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+    renderer.setClearColor(0x080c14,1);   // dark background
+    renderer.sortObjects=true;
+    el.appendChild(renderer.domElement);
+
+    const scene=new THREE.Scene();
+    const camera=new THREE.PerspectiveCamera(44,W/H,.1,100);
+    const cam={theta:0.55,phi:1.05,radius:11};
+    const updateCam=()=>{
+      camera.position.set(cam.radius*Math.sin(cam.phi)*Math.sin(cam.theta),
+                          cam.radius*Math.cos(cam.phi),
+                          cam.radius*Math.sin(cam.phi)*Math.cos(cam.theta));
+      camera.lookAt(0,0,0);
+    };
+    updateCam();
+    scene.add(new THREE.AmbientLight(0xffffff,1.6));
+    const dl=new THREE.DirectionalLight(0xffffff,.6);dl.position.set(4,8,6);scene.add(dl);
+
+    // Bounding box
+    scene.add(new THREE.Box3Helper(new THREE.Box3(new THREE.Vector3(-3,-3,-3),new THREE.Vector3(3,3,3)),new THREE.Color(0x1e3050)));
+
+    // Axis lines: threeX=worldX (red), threeY=worldZ (green), threeZ=−worldY (blue)
+    const mkAx=(p1,p2,c)=>{
+      const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...p1),new THREE.Vector3(...p2)]);
+      const l=new THREE.Line(g,new THREE.LineBasicMaterial({color:c,transparent:true,opacity:.55}));
+      scene.add(l);return l;
+    };
+    mkAx([-3.5,0,0],[3.5,0,0],0xc0392b);  // x → right
+    mkAx([0,-3.5,0],[0,3.5,0],0x2d6b2d);  // z → up (threeY)
+    mkAx([0,0,-3.5],[0,0,3.5],0x1a4f8b);  // −y → depth (threeZ)
+
+    // Axis labels as sprites — skip for simplicity, use small text
+    // (Three.js CSS2DRenderer not loaded; skip labels)
+
+    // ── Build voxels ──────────────────────────────────────────
+    const VRES=voxelRes;
+    const step=6/(VRES-1);
+    // Evaluate cost on grid: worldX varies, worldY varies, worldZ varies
+    // For dims>3, theta[k>=3] fix higher dims
+    const vals=[];
+    const coords=[];
+    for(let ix=0;ix<VRES;ix++)for(let iy=0;iy<VRES;iy++)for(let iz=0;iz<VRES;iz++){
+      const wx=-3+ix*step,wy=-3+iy*step,wz=-3+iz*step;
+      const p=Array.from({length:Math.max(dims,3)},(_,k)=>k===0?wx:k===1?wy:k===2?wz:(theta[k]??0));
+      vals.push(costFn(p.slice(0,dims)));
+      coords.push([wx,wy,wz]);
+    }
+    const vmin=Math.min(...vals),vmax=Math.max(...vals),vrange=vmax-vmin+1e-9;
+
+    // Colormap: map t in [0,1] → colour
+    // Use plasma-like: low=dark blue, mid=orange, high=yellow
+    const mkColor=t=>{
+      // manually approximate plasma
+      const r=Math.min(1,Math.max(0, 0.05+1.5*t*t));
+      const g=Math.min(1,Math.max(0,-0.1+1.8*t*(1-t)*2+t*t*.3));
+      const b=Math.min(1,Math.max(0, 0.6-1.2*t+.2*t*t));
+      return new THREE.Color(r,g,b);
+    };
+
+    const voxels=[];
+    const boxGeom=new THREE.BoxGeometry(step*.82,step*.82,step*.82);
+
+    for(let vi=0;vi<vals.length;vi++){
+      const t=(vals[vi]-vmin)/vrange;
+      // Inverted nonlinear opacity: low-cost voxels are opaque, high-cost are invisible
+      const THRESH=0.95;
+      if(t>THRESH){coords[vi]=null;continue;}  // skip high-cost (invisible) voxels
+      const tAdj=1-(t/0.95);
+      const computedOpacity=Math.pow(tAdj,1.8)*opacity;
+      if(computedOpacity<0.1){coords[vi]=null;continue;}  // skip below opacity threshold
+      const mat=new THREE.MeshPhongMaterial({
+        color:mkColor(t), transparent:true,
+        opacity:computedOpacity,
+        shininess:15, depthWrite:false,
+      });
+      const mesh=new THREE.Mesh(boxGeom,mat);
+      const [wx,wy,wz]=coords[vi];
+      // remap to THREE: threeX=wx, threeY=wz, threeZ=−wy
+      mesh.position.set(wx,wz,-wy);
+      mesh.renderOrder=1;
+      scene.add(mesh);
+      voxels.push({mesh,mat,t});
+    }
+
+    // ── Slice planes ──────────────────────────────────────────
+    // YZ-plane at x=θ₁: normal along threeX → rotate plane 90° around threeY
+    const mkPlane=(color)=>new THREE.MeshBasicMaterial({color,transparent:true,opacity:.18,side:THREE.DoubleSide,depthWrite:false});
+    const pGeom=new THREE.PlaneGeometry(6.01,6.01);
+
+    const planeYZ=new THREE.Mesh(pGeom.clone(),mkPlane(0xc0392b));
+    planeYZ.rotation.y=Math.PI/2;  // now faces X-axis
+    scene.add(planeYZ);
+
+    // ZX-plane at y=θ₂: worldY=θ₂ → threeZ=−θ₂, normal along threeZ
+    // PlaneGeometry by default lies in XY of THREE, facing +Z — perfect
+    const planeZX=new THREE.Mesh(pGeom.clone(),mkPlane(0x1a4f8b));
+    // no rotation needed — default PlaneGeometry is in XY, normal=+Z
+    scene.add(planeZX);
+
+    // XY-plane at z=θ₃: worldZ=θ₃ → threeY=θ₃, normal along threeY
+    const planeXY=new THREE.Mesh(pGeom.clone(),mkPlane(0x2d6b2d));
+    planeXY.rotation.x=Math.PI/2;  // now lies in XZ of THREE, facing +Y
+    scene.add(planeXY);
+
+    // Intersection dot
+    const dotGeom=new THREE.SphereGeometry(.12,16,16);
+    const dotMat=new THREE.MeshPhongMaterial({color:0xffffff,emissive:0xffffff,emissiveIntensity:1});
+    const dot=new THREE.Mesh(dotGeom,dotMat);
+    dot.renderOrder=10;
+    scene.add(dot);
+
+    // Gradient descent minimum marker — glowing gold sphere, hidden until set
+    const minDotGeom=new THREE.SphereGeometry(.15,20,20);
+    const minDotMat=new THREE.MeshPhongMaterial({color:0xffcc00,emissive:0xffaa00,emissiveIntensity:1.2,transparent:false});
+    const minDot=new THREE.Mesh(minDotGeom,minDotMat);
+    minDot.renderOrder=20;
+    minDot.visible=false;
+    scene.add(minDot);
+    // Outer glow ring around minDot
+    const minRingGeom=new THREE.SphereGeometry(.28,20,20);
+    const minRingMat=new THREE.MeshBasicMaterial({color:0xffcc00,transparent:true,opacity:.22,side:THREE.FrontSide,depthWrite:false});
+    const minRing=new THREE.Mesh(minRingGeom,minRingMat);
+    minRing.visible=false;
+    scene.add(minRing);
+
+    // ── Orbit ─────────────────────────────────────────────────
+    let isDrag=false,prev={x:0,y:0};
+    renderer.domElement.addEventListener('mousedown',e=>{isDrag=true;prev={x:e.clientX,y:e.clientY};});
+    const onMove=e=>{if(!isDrag)return;cam.theta-=(e.clientX-prev.x)*.007;cam.phi=Math.max(.15,Math.min(Math.PI-.15,cam.phi-(e.clientY-prev.y)*.007));prev={x:e.clientX,y:e.clientY};updateCam();};
+    const onUp=()=>isDrag=false;
+    window.addEventListener('mousemove',onMove);window.addEventListener('mouseup',onUp);
+    renderer.domElement.addEventListener('wheel',e=>{cam.radius=Math.max(4,Math.min(22,cam.radius+e.deltaY*.015));updateCam();e.preventDefault();},{passive:false});
+
+    let animId;
+    const animate=()=>{animId=requestAnimationFrame(animate);renderer.render(scene,camera);};
+    animate();
+
+    internals.current={renderer,scene,voxels,planeYZ,planeZX,planeXY,dot,minDot,minRing,cam,updateCam};
+    return()=>{
+      cancelAnimationFrame(animId);renderer.dispose();
+      window.removeEventListener('mousemove',onMove);window.removeEventListener('mouseup',onUp);
+      if(el.contains(renderer.domElement))el.removeChild(renderer.domElement);
+      internals.current={};
+    };
+  // Rebuild when costFn, dims, or voxelRes changes
+  },[costFn,dims,voxelRes]); // eslint-disable-line
+
+  // ── Update voxel opacity when opacity slider changes ──────────────────────
+  useEffect(()=>{
+    const {voxels}=internals.current;if(!voxels)return;
+    voxels.forEach(({mat,t})=>{
+      const THRESH=0.95;
+      if(t>THRESH){mat.opacity=0;mat.visible=false;return;}
+      const tAdj=1-(t/THRESH);
+      const computed=Math.pow(tAdj,1.8)*opacity;
+      if(computed<0.1){mat.opacity=0;mat.visible=false;return;}
+      mat.visible=true;
+      mat.opacity=computed;
+    });
+  },[opacity]);
+
+  // ── Update slice plane positions when theta changes ───────────────────────
+  useEffect(()=>{
+    const {planeYZ,planeZX,planeXY,dot}=internals.current;if(!planeYZ)return;
+    const tx=theta[0]??0, ty=theta[1]??0, tz=theta[2]??0;
+    // YZ-plane at worldX=tx → threeX=tx
+    planeYZ.position.set(tx,0,0);
+    // ZX-plane at worldY=ty → threeZ=−ty
+    planeZX.position.set(0,0,-ty);
+    // XY-plane at worldZ=tz → threeY=tz
+    planeXY.position.set(0,tz,0);
+    // Intersection dot at (threeX=tx, threeY=tz, threeZ=−ty)
+    dot.position.set(tx,tz,-ty);
+  },[theta]);
+
+  // ── Update minimum marker when path changes ───────────────────────────────
+  useEffect(()=>{
+    const {minDot,minRing}=internals.current;if(!minDot)return;
+    if(!pathNd||pathNd.length===0){minDot.visible=false;minRing.visible=false;return;}
+    // The minimum is the last point in pathNd (optimizer converges toward minimum)
+    // But we want the best (lowest cost) point seen so far
+    const best=pathNd[pathNd.length-1];
+    // remap world→THREE: threeX=wx, threeY=wz, threeZ=−wy
+    const wx=best[0]??0, wy=best[1]??0, wz=best[2]??0;
+    minDot.position.set(wx,wz,-wy);
+    minRing.position.set(wx,wz,-wy);
+    minDot.visible=true;
+    minRing.visible=true;
+  },[pathNd]);
+
+  // ── Rebuild voxels when higher-dim theta changes ──────────────────────────
+  // We detect changes in theta[3+] and recompute voxel colors/opacity in place
+  const prevHigherRef=useRef({});
+  useEffect(()=>{
+    const {voxels,scene}=internals.current;if(!voxels||!scene)return;
+    // Check if any theta[k>=3] changed
+    let changed=false;
+    for(let k=3;k<20;k++){
+      const cur=theta[k]??0, prev=prevHigherRef.current[k]??0;
+      if(Math.abs(cur-prev)>1e-9){changed=true;break;}
+    }
+    if(!changed)return;
+    for(let k=3;k<20;k++)prevHigherRef.current[k]=theta[k]??0;
+    // Recompute all voxel costs with new higher-dim values
+    const VRES=internals.current.voxels.length>0 ? Math.round(Math.cbrt(internals.current.voxels.length)) : 8;
+    // We need step and the index mapping — stored in voxels as {mesh,mat,t,wx,wy,wz}
+    // Unfortunately we didn't store wx/wy/wz in the voxel array — let's re-derive from position
+    const vals2=voxels.map(({mesh})=>{
+      // Inverse remap: wx=threeX, wz=threeY, wy=−threeZ
+      const {x:tx2,y:ty2,z:tz2}=mesh.position;
+      const wx=tx2,wy=-tz2,wz=ty2;
+      const p=Array.from({length:Math.max(dims,3)},(_,k)=>k===0?wx:k===1?wy:k===2?wz:(theta[k]??0));
+      return costFn(p.slice(0,dims));
+    });
+    const vmin2=Math.min(...vals2),vmax2=Math.max(...vals2),vrange2=vmax2-vmin2+1e-9;
+    const mkColor2=t=>{
+      const r=Math.min(1,Math.max(0,.05+1.5*t*t));
+      const g2=Math.min(1,Math.max(0,-.1+1.8*t*(1-t)*2+t*t*.3));
+      const b=Math.min(1,Math.max(0,.6-1.2*t+.2*t*t));
+      return new THREE.Color(r,g2,b);
+    };
+    const THRESH=0.95;
+    voxels.forEach((v,i)=>{
+      const t=(vals2[i]-vmin2)/vrange2;
+      v.t=t;
+      v.mat.color=mkColor2(t);
+      if(t>THRESH){v.mat.opacity=0;v.mat.visible=false;return;}
+      const tAdj=1-(t/THRESH);
+      const computed=Math.pow(tAdj,1.8)*opacity;
+      if(computed<0.1){v.mat.opacity=0;v.mat.visible=false;return;}
+      v.mat.visible=true;
+      v.mat.opacity=computed;
+    });
+  },[theta,costFn,dims,opacity]); // eslint-disable-line
+
+  return <div ref={mountRef} style={{width:'100%',height:'100%'}}/>;
+}
+
+// ─── Main App ─────────────────────────────────────────────────────────────────
+function App(){
+  const [dims,setDims]=useState(3);
+  const [cfKey,setCfKey]=useState('perlin');
+  const [optimizer,setOptimizer]=useState('gradient');
+  const [lr,setLr]=useState(0.15);
+  const [speed,setSpeed]=useState(12);
+  const [startMode,setStartMode]=useState('auto');
+  const [seed,setSeed]=useState(7);
+  const [manualXY,setManualXY]=useState(null);
+  const [voxelOpacity,setVoxelOpacity]=useState(0.55);
+  const [voxelRes,setVoxelRes]=useState(9);
+
+  // theta[0]=x, theta[1]=y, theta[2]=z, theta[k>=3]=higher dims
+  const [theta,setTheta]=useState({0:0,1:0,2:0});
+  const setThetaK=(k,v)=>setTheta(t=>({...t,[k]:v}));
+
+  const [pathNd,setPathNd]=useState([]);
+  const [historyNd,setHistoryNd]=useState([]);
+  const [stepsNd,setStepsNd]=useState(0);
+  const [convNd,setConvNd]=useState(false);
+  const [running,setRunning]=useState(false);
+
+  const stateRef=useRef({});
+  const animRef=useRef(null);
+  const cf=useMemo(()=>COST_FNS[cfKey].fn,[cfKey]);
+  const volumeRatio=useMemo(()=>Math.pow(6,dims-2).toFixed(0),[dims]);
+  const curCostNd=historyNd.length?historyNd[historyNd.length-1].toFixed(4):'—';
+  const THRESH=0.012;
+
+  // Sample the full landscape on a coarse grid to get a stable global [min,max]
+  // so heatmap and 1D plot share the same colour/axis scale across all slices.
+  const globalCostRange=useMemo(()=>{
+    const SRES=12;
+    const step=6/(SRES-1);
+    let mn=Infinity,mx=-Infinity;
+    if(dims<=3){
+      for(let ix=0;ix<SRES;ix++)for(let iy=0;iy<(dims>=2?SRES:1);iy++)for(let iz=0;iz<(dims>=3?SRES:1);iz++){
+        const p=Array.from({length:dims},(_,k)=>k===0?-3+ix*step:k===1?-3+iy*step:-3+iz*step);
+        const v=cf(p);if(v<mn)mn=v;if(v>mx)mx=v;
+      }
+    } else {
+      // Random sampling for high dims
+      for(let s=0;s<2000;s++){
+        const p=Array.from({length:dims},()=>(Math.random()-.5)*6);
+        const v=cf(p);if(v<mn)mn=v;if(v>mx)mx=v;
+      }
+    }
+    return [mn,mx];
+  },[cf,dims]);
+
+  const initRun=useCallback(()=>{
+    const startN=makeStart(dims,seed,startMode==='manual'&&manualXY?manualXY:null);
+    const c=cf(startN);
+    // Sync theta sliders to the starting position so all plots reflect the start
+    setTheta(prev=>{
+      const next={...prev};
+      for(let k=0;k<dims;k++) next[k]=startN[k];
+      return next;
+    });
+    setPathNd([startN]);setHistoryNd([c]);setStepsNd(0);setConvNd(false);
+    stateRef.current={posNd:[...startN],done:false,dims,cf,lr,optimizer};
+  },[dims,seed,manualXY,startMode,cf,lr,optimizer]);
+
+  const doStep=useCallback(()=>{
+    const s=stateRef.current;if(!s.posNd||s.done)return;
+    const next=optimizerStep(s.posNd,s.cf,s.optimizer,s.lr);
+    const c=s.cf(next);s.posNd=next;
+    setPathNd(p=>[...p,next]);setHistoryNd(h=>[...h,c]);setStepsNd(x=>x+1);
+    // Keep theta sliders in sync with optimizer position (dims 0..N-1)
+    setTheta(prev=>{
+      const t={...prev};
+      for(let k=0;k<s.dims;k++) t[k]=next[k];
+      return t;
+    });
+    if(c<THRESH){s.done=true;setConvNd(true);setRunning(false);}
+  },[]);
+
+  useEffect(()=>{
+    if(!running){clearInterval(animRef.current);return;}
+    animRef.current=setInterval(doStep,1000/speed);
+    return()=>clearInterval(animRef.current);
+  },[running,speed,doStep]);
+
+  const handlePlay=()=>{if(!stateRef.current.posNd)initRun();setRunning(r=>!r);};
+  const handleStep=()=>{if(!stateRef.current.posNd)initRun();doStep();};
+  const handleReset=()=>{
+    setRunning(false);clearInterval(animRef.current);
+    setPathNd([]);setHistoryNd([]);setStepsNd(0);setConvNd(false);stateRef.current={};
+  };
+
+  const sliderDims=Array.from({length:dims},(_,i)=>i);
+  const roleLabel=k=>k===0?'slice YZ plane (x)':k===1?'slice ZX plane (y)':k===2?'slice XY plane (z)':`higher dim θ${k+1}`;
+  const roleColor=k=>k===0?'var(--col-x)':k===1?'var(--col-y)':k===2?'var(--col-z)':'var(--muted)';
+  const sliderAccent=k=>k===0?'#c0392b':k===1?'#1a4f8b':k===2?'#2d6b2d':'#a89880';
+
+  return (
+    <div className="app">
+      <div className="app-header">
+        <span className="app-title">Curse of Dimensionality</span>
+        <span className="app-subtitle">Interactive cost function explorer — {dims}-dimensional search space</span>
+        {convNd&&<div className="header-note">Converged in {stepsNd} steps</div>}
+      </div>
+
+      <div className="body">
+
+        {/* CONTROLS */}
+        <div className="controls">
+          <div className="ctrl-section">
+            <div className="ctrl-lbl">Starting Point</div>
+            <div className="toggle-row">
+              <button className={`tog ${startMode==='auto'?'on':''}`} onClick={()=>{setStartMode('auto');handleReset();}}>Auto</button>
+              <button className={`tog ${startMode==='manual'?'on':''}`} onClick={()=>{setStartMode('manual');handleReset();}}>Manual</button>
+            </div>
+            {startMode==='auto'&&<div className="seed-row"><span className="seed-lbl">seed</span><span className="seed-val">{seed}</span><button className="pbtn" style={{flex:'none',padding:'2px 8px',fontSize:10}} onClick={()=>{setSeed(s=>s+1);handleReset();}}>New</button></div>}
+            {startMode==='manual'&&<p className="manual-hint">{manualXY?`x=${manualXY[0].toFixed(2)}, y=${manualXY[1].toFixed(2)}`:'Click the 2D heatmap to place start'}</p>}
+          </div>
+
+          <div className="ctrl-section">
+            <div className="ctrl-lbl">Dimensions (N)</div>
+            <div className="dim-row">
+              <button className="dim-btn" onClick={()=>{if(dims>2){setDims(d=>d-1);handleReset();}}}>−</button>
+              <div className="dim-num">{dims}</div>
+              <button className="dim-btn" onClick={()=>{if(dims<10){setDims(d=>d+1);handleReset();}}}>+</button>
+            </div>
+            <div className={`vol-badge ${dims<=3?'ok':''}`}>Search space ×{volumeRatio} vs. 2D</div>
+          </div>
+
+          <div className="ctrl-section">
+            <div className="ctrl-lbl">Cost Function</div>
+            <select className="cf-select" value={cfKey} onChange={e=>{setCfKey(e.target.value);handleReset();}}>
+              {Object.entries(COST_FNS).map(([k,v])=><option key={k} value={k}>{v.name}</option>)}
+            </select>
+            <div style={{fontSize:10,color:'var(--muted)',marginTop:5,fontFamily:'var(--mono)'}}>{COST_FNS[cfKey].desc}</div>
+          </div>
+
+          <div className="ctrl-section">
+            <div className="ctrl-lbl">Optimizer</div>
+            <div className="radio-list">
+              {[['gradient','Gradient Descent','Follows the slope'],['random','Random Search','Degrades fast with N']].map(([k,name,desc])=>(
+                <label key={k} className={`radio-item ${optimizer===k?'sel':''}`}>
+                  <input type="radio" name="opt" checked={optimizer===k} onChange={()=>{setOptimizer(k);handleReset();}}/>
+                  <span><span className="radio-name">{name}</span><span className="radio-desc">{desc}</span></span>
+                </label>
+              ))}
+            </div>
+            <div className="srow">
+              <label>lr</label>
+              <input type="range" min="0.01" max="0.5" step="0.01" value={lr} onChange={e=>setLr(+e.target.value)}/>
+              <span className="sv">{lr.toFixed(2)}</span>
+            </div>
+          </div>
+
+          <div className="ctrl-section">
+            <div className="ctrl-lbl">Playback</div>
+            <div className="play-btns">
+              <button className="pbtn primary" onClick={handlePlay}>{running?'⏸ Pause':'▶ Play'}</button>
+              <button className="pbtn" onClick={handleStep} disabled={running}>Step</button>
+              <button className="pbtn" onClick={handleReset}>Reset</button>
+            </div>
+            <div className="srow" style={{marginTop:7}}>
+              <label>spd</label>
+              <input type="range" min="1" max="60" value={speed} onChange={e=>setSpeed(+e.target.value)}/>
+              <span className="sv">{speed}/s</span>
+            </div>
+          </div>
+        </div>
+
+        {/* CENTER */}
+        <div className="center">
+          <div className="viz-row">
+
+            {/* 3D VOXEL */}
+            <div className="viz-panel" style={{background:'#080c14'}}>
+              <div className="viz-panel-header" style={{background:'#0c1220',borderBottomColor:'#1e3050',color:'#6a8aaa'}}>
+                3D Volume&nbsp;<span style={{fontStyle:'italic',color:'#3a5070'}}>x·y·z</span>
+                <div className="viz-stat" style={{color:'#3a6090'}}><span>drag to orbit · scroll to zoom</span></div>
+              </div>
+              <div className="viz-canvas-area">
+                <VoxelVolume costFn={cf} dims={dims} theta={theta} opacity={voxelOpacity} voxelRes={voxelRes} pathNd={pathNd}/>
+                <div className="vol-ctl">
+                  <label>OPACITY</label>
+                  <input type="range" min="0.05" max="1.0" step="0.01" value={voxelOpacity} onChange={e=>setVoxelOpacity(+e.target.value)}/>
+                  <label style={{marginTop:3}}>DENSITY</label>
+                  <input type="range" min="4" max="20" step="1" value={voxelRes} onChange={e=>setVoxelRes(+e.target.value)}/>
+                  <span className="vval">{voxelRes}³ = {voxelRes**3} voxels</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 2D HEATMAP */}
+            <div className="viz-panel">
+              <div className="viz-panel-header">
+                2D Slice&nbsp;<span style={{fontStyle:'italic',color:'var(--muted)'}}>x·y plane</span>
+                <div className="viz-stat"><span>steps: {stepsNd}</span><span>cost: {curCostNd}</span></div>
+              </div>
+              <div className="viz-canvas-area">
+                <Plot2D costFn={cf} dims={dims} theta={theta} pathNd={pathNd}
+                  globalCostRange={globalCostRange}
+                  manualMode={startMode==='manual'}
+                  onClickPlace={xy=>{setManualXY(xy);setThetaK(0,xy[0]);setThetaK(1,xy[1]);handleReset();}}/>
+              </div>
+            </div>
+
+            {/* 1D CHART */}
+            <div className="viz-panel">
+              <div className="viz-panel-header">
+                1D Slice&nbsp;<span style={{fontStyle:'italic',color:'var(--muted)'}}>cost vs x</span>
+                <div className="viz-stat"><span>θ₁ = {(theta[0]??0).toFixed(2)}</span></div>
+              </div>
+              <div className="viz-canvas-area">
+                <Plot1D costFn={cf} dims={dims} theta={theta} pathNd={pathNd} globalCostRange={globalCostRange}/>
+              </div>
+            </div>
+
+          </div>
+
+          {/* SLIDERS ROW */}
+          <div className="sliders-row">
+            <div className="sliders-header">
+              Dimension sliders &nbsp;
+              <span className="hx">θ₁ → YZ slice (x)</span>
+              <span className="hy">θ₂ → ZX slice (y)</span>
+              <span className="hz">θ₃ → XY slice (z)</span>
+              <span className="hN">θ₄…N → higher dims</span>
+            </div>
+            {sliderDims.map(k=>(
+              <div className="dim-slider-row" key={k}>
+                <div className="dim-slider-lbl" style={{color:roleColor(k)}}>θ{k+1}</div>
+                <div className="dim-slider-track">
+                  <input type="range" min="-3" max="3" step="0.05"
+                    value={theta[k]??0}
+                    onChange={e=>setThetaK(k,+e.target.value)}
+                    style={{width:'100%',accentColor:sliderAccent(k)}}/>
+                </div>
+                <div className="dim-slider-val" style={{color:roleColor(k)}}>{(theta[k]??0).toFixed(2)}</div>
+                <div className="dim-slider-role">{roleLabel(k)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* CONVERGENCE */}
+        <div className="conv-panel">
+          <div className="conv-header">Convergence</div>
+          <div className="conv-chart" style={{flex:1,overflow:'hidden',minHeight:0,padding:'4px'}}>
+            <ConvergenceChart historyNd={historyNd}/>
+          </div>
+          <div className="conv-stats">
+            <table className="stat-tbl">
+              <thead><tr><th></th><th className="cn">{dims}D</th></tr></thead>
+              <tbody>
+                <tr><td style={{color:'var(--muted)',fontSize:9}}>steps</td><td className="cn">{stepsNd||'—'}</td></tr>
+                <tr><td style={{color:'var(--muted)',fontSize:9}}>cost</td><td className="cn">{curCostNd}</td></tr>
+                <tr><td style={{color:'var(--muted)',fontSize:9}}>conv.</td><td className="cn">{convNd?'✓':'—'}</td></tr>
+                <tr><td style={{color:'var(--muted)',fontSize:9}}>vol ×</td><td style={{color:'var(--accent)',fontFamily:'var(--mono)',fontSize:10}}>{volumeRatio}×</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div className="insight">
+            <strong>Axes:</strong> <span style={{color:'var(--col-x)'}}>x</span>=right, <span style={{color:'var(--col-y)'}}>y</span>=depth, <span style={{color:'var(--col-z)'}}>z</span>=up.
+            <br/><br/>
+            Slice planes intersect at the white dot. Their intersections appear as coloured lines in the 2D heatmap.
+            <br/><br/>
+            At N={dims}, a 10-point grid needs <strong>10<sup style={{fontSize:8}}>{dims}</sup></strong> evaluations.
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
