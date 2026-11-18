@@ -308,7 +308,7 @@
   // --- Main loop ---
   function loop(ts) {
     const t = ts / 1000;
-    const dt = Math.min(t - S.lastTime, 0.05);
+    const dt = Math.max(0, Math.min(t - S.lastTime, 0.05));  // first frame can predate lastTime
     S.lastTime = t; S.time = t;
 
     const omega = mode === 'auto' ? autoFreq : S.userFreq;
