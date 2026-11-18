@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>HKB Model Simulation</title>
+<meta name="description" content="Interactive simulation of the Haken-Kelso-Bunz (1985) coordination dynamics model — touch to oscillate against a coupled HKB finger">
+<meta name="keywords" content="HKB, Haken, Kelso, Bunz, coordination dynamics, phase transition, synergetics, motor control, simulation">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; background: #0a0a12; }
+  body {
+    font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+    color: #fff;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  #app {
+    width: 100%;
+    max-width: 420px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    position: relative;
+  }
+  .header {
+    padding: 12px 16px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .title { font-size: 16px; font-weight: 700; letter-spacing: 2px; color: rgba(255,255,255,0.9); }
+  .subtitle { font-size: 9px; color: rgba(255,255,255,0.35); letter-spacing: 1px; }
+  .info-btn {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 20px;
+    color: #fff;
+    width: 32px; height: 32px;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: inherit;
+  }
+  #canvas { width: 100%; flex: 1; min-height: 0; touch-action: none; }
+  .controls { padding: 0 16px 16px; flex-shrink: 0; }
+  .mode-row { display: flex; gap: 8px; margin-bottom: 14px; }
+  .mode-btn {
+    flex: 1;
+    padding: 10px 0;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    color: rgba(255,255,255,0.4);
+    font-size: 11px;
+    font-weight: 600;
+    font-family: inherit;
+    letter-spacing: 1px;
+    cursor: pointer;
+    text-transform: uppercase;
+  }
+  .mode-btn.active {
+    background: rgba(180,140,255,0.2);
+    border-color: rgba(180,140,255,0.5);
+    color: #c8b0ff;
+  }
+  .slider-row { display: flex; gap: 12px; }
+  .slider-group { flex: 1; }
+  .slider-label {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 2px;
+    font-size: 10px;
+    letter-spacing: 1px;
+  }
+  input[type=range] { width: 100%; }
+  input[type=range].accent-orange { accent-color: #ff7850; }
+  input[type=range].accent-blue { accent-color: #50b4ff; }
+  input[type=range].accent-purple { accent-color: #b48cff; }
+  input[type=range].accent-gray { accent-color: #888; }
+  .freq-hint { font-size: 9px; color: rgba(255,255,255,0.3); margin-top: 2px; }
+  .ratio-readout {
+    margin-top: 12px;
+    text-align: center;
+    font-size: 10px;
+    color: rgba(255,255,255,0.35);
+    letter-spacing: 1px;
+  }
+  .mono { color: rgba(120,255,160,0.7); margin-left: 8px; }
+  .bi { color: rgba(255,180,100,0.7); margin-left: 8px; }
+  .info-panel {
+    display: none;
+    position: absolute;
+    top: 50px; left: 16px; right: 16px;
+    background: rgba(15,16,36,0.97);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 12px;
+    padding: 16px;
+    z-index: 10;
+    font-size: 11px;
+    line-height: 1.6;
+    color: rgba(255,255,255,0.7);
+  }
+  .info-panel.visible { display: block; }
+  .info-panel h3 { font-weight: 700; font-size: 13px; margin-bottom: 8px; color: #fff; }
+  .info-panel p { margin: 0 0 8px; }
+  .eq-box {
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin: 8px 0;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    color: rgba(180,140,255,0.9);
+  }
+  .c-orange { color: #ff7850; }
+  .c-blue { color: #50b4ff; }
+  #freq-section { display: none; }
+  #freq-section.visible { display: block; margin-bottom: 14px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div>
+      <div class="title">HKB MODEL</div>
+      <div class="subtitle">HAKEN · KELSO · BUNZ 1985</div>
+    </div>
+    <button class="info-btn" id="infoBtn">?</button>
+  </div>
+
+  <div class="info-panel" id="infoPanel">
+    <h3>How it works</h3>
+    <p>Move your finger up and down on the left track. The HKB oscillator on the right follows according to the coordination dynamics equation:</p>
+    <div class="eq-box">dΦ/dt = −a·sin(Φ) − 2b·sin(2Φ) + noise</div>
+    <p><b class="c-orange">a</b> controls in-phase stability. <b class="c-blue">b</b> controls anti-phase stability. When b/a is small, only in-phase (Φ≈0) is stable — the classic phase transition.</p>
+    <p>Use <b>Auto</b> mode and increase frequency to watch the spontaneous transition from anti-phase to in-phase coordination.</p>
+  </div>
+
+  <canvas id="canvas"></canvas>
+
+  <div class="controls">
+    <div class="mode-row">
+      <button class="mode-btn active" id="btnTouch">TOUCH</button>
+      <button class="mode-btn" id="btnAuto">AUTO DEMO</button>
+    </div>
+
+    <div id="freq-section">
+      <div class="slider-label">
+        <span style="color:rgba(255,255,255,0.5)">FREQUENCY</span>
+        <span id="freqVal" style="color:rgba(255,255,255,0.7)">1.0 Hz</span>
+      </div>
+      <input type="range" class="accent-purple" id="freqSlider" min="0.5" max="4" step="0.1" value="1.0">
+      <div class="freq-hint">Increase to trigger phase transition</div>
+    </div>
+
+    <div class="slider-row">
+      <div class="slider-group">
+        <div class="slider-label">
+          <span style="color:rgba(255,120,80,0.7)">a</span>
+          <span id="aVal" style="color:rgba(255,255,255,0.5)">1.0</span>
+        </div>
+        <input type="range" class="accent-orange" id="aSlider" min="0" max="4" step="0.1" value="1.0">
+      </div>
+      <div class="slider-group">
+        <div class="slider-label">
+          <span style="color:rgba(80,180,255,0.7)">b</span>
+          <span id="bVal" style="color:rgba(255,255,255,0.5)">1.0</span>
+        </div>
+        <input type="range" class="accent-blue" id="bSlider" min="0" max="4" step="0.1" value="1.0">
+      </div>
+    </div>
+
+    <div style="margin-top:10px">
+      <div class="slider-label">
+        <span style="color:rgba(255,255,255,0.4)">NOISE (ξ)</span>
+        <span id="noiseVal" style="color:rgba(255,255,255,0.5)">0.08</span>
+      </div>
+      <input type="range" class="accent-gray" id="noiseSlider" min="0" max="0.5" step="0.01" value="0.08">
+    </div>
+
+    <div class="ratio-readout" id="ratioReadout"></div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const TAU = Math.PI * 2;
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+
+  // --- State ---
+  const S = {
+    userPhase: 0, simPhase: 0,
+    touching: false, touchY: 0, lastTouchY: 0, touchStartTime: 0,
+    userPos: 0, simPos: 0,
+    userVelocity: 0, userFreq: 1.5,
+    phaseHistory: [],
+    time: 0, lastTime: performance.now() / 1000,
+    transitionDetected: false, transitionTime: 0,
+  };
+  let mode = 'interactive'; // interactive | auto
+  let aBase = 1, bBase = 1, noise = 0.08, autoFreq = 1;
+  let prevRelPhase = 0;
+
+  // --- DOM refs ---
+  const $ = id => document.getElementById(id);
+  const btnTouch = $('btnTouch'), btnAuto = $('btnAuto');
+  const freqSection = $('freq-section'), freqSlider = $('freqSlider'), freqVal = $('freqVal');
+  const aSlider = $('aSlider'), bSlider = $('bSlider'), noiseSlider = $('noiseSlider');
+  const aVal = $('aVal'), bVal = $('bVal'), noiseVal = $('noiseVal');
+  const ratioReadout = $('ratioReadout');
+  const infoBtn = $('infoBtn'), infoPanel = $('infoPanel');
+
+  // --- Controls ---
+  infoBtn.addEventListener('click', () => {
+    infoPanel.classList.toggle('visible');
+    infoBtn.textContent = infoPanel.classList.contains('visible') ? '×' : '?';
+  });
+  btnTouch.addEventListener('click', () => { setMode('interactive'); });
+  btnAuto.addEventListener('click', () => { setMode('auto'); });
+  function setMode(m) {
+    mode = m;
+    btnTouch.classList.toggle('active', m === 'interactive');
+    btnAuto.classList.toggle('active', m === 'auto');
+    freqSection.classList.toggle('visible', m === 'auto');
+    if (m === 'auto') {
+      S.simPhase = S.userPhase + Math.PI;
+      S.phaseHistory = [];
+    }
+  }
+  freqSlider.addEventListener('input', () => { autoFreq = +freqSlider.value; freqVal.textContent = autoFreq.toFixed(1) + ' Hz'; });
+  aSlider.addEventListener('input', () => { aBase = +aSlider.value; aVal.textContent = aBase.toFixed(1); updateRatio(); });
+  bSlider.addEventListener('input', () => { bBase = +bSlider.value; bVal.textContent = bBase.toFixed(1); updateRatio(); });
+  noiseSlider.addEventListener('input', () => { noise = +noiseSlider.value; noiseVal.textContent = noise.toFixed(2); });
+
+  function updateRatio() {
+    const r = aBase > 0 ? (bBase / aBase) : Infinity;
+    let html = 'b/a = ' + (isFinite(r) ? r.toFixed(2) : '∞');
+    if (isFinite(r) && r < 0.25) html += '<span class="mono">MONOSTABLE (in-phase only)</span>';
+    else if (isFinite(r)) html += '<span class="bi">BISTABLE</span>';
+    ratioReadout.innerHTML = html;
+  }
+  updateRatio();
+
+  // --- HKB dynamics ---
+  function hkbDPhi(phi, a, b) { return -a * Math.sin(phi) - 2 * b * Math.sin(2 * phi); }
+  function norm(a) { while (a > Math.PI) a -= TAU; while (a < -Math.PI) a += TAU; return a; }
+
+  // --- Resize ---
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    const r = canvas.getBoundingClientRect();
+    canvas.width = r.width * dpr;
+    canvas.height = r.height * dpr;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // --- Touch ---
+  function ptrDown(x, y) {
+    const r = canvas.getBoundingClientRect();
+    if (x - r.left > r.width * 0.5) return;
+    S.touching = true;
+    S.touchY = y - r.top;
+    S.lastTouchY = S.touchY;
+    S.touchStartTime = performance.now();
+    const trackY = r.height * 0.1;
+    const trackH = r.height * 0.44;
+    const center = trackY + trackH / 2;
+    S.userPos = Math.max(-1, Math.min(1, (S.touchY - center) / (trackH / 2 - 25)));
+  }
+  function ptrMove(x, y) {
+    if (!S.touching) return;
+    const r = canvas.getBoundingClientRect();
+    S.lastTouchY = S.touchY;
+    S.touchY = y - r.top;
+    const trackY = r.height * 0.1;
+    const trackH = r.height * 0.44;
+    const center = trackY + trackH / 2;
+    S.userPos = Math.max(-1, Math.min(1, (S.touchY - center) / (trackH / 2 - 25)));
+    const dt = 0.016;
+    S.userVelocity = (S.touchY - S.lastTouchY) / (trackH * dt);
+    if (Math.abs(S.userPos) < 0.15 && Math.abs(S.userVelocity) > 0.5) {
+      const elapsed = (performance.now() - S.touchStartTime) / 1000;
+      if (elapsed > 0.1) S.userFreq = Math.max(0.5, Math.min(5, Math.abs(S.userVelocity) * 0.3));
+    }
+  }
+  function ptrUp() { S.touching = false; }
+
+  canvas.addEventListener('pointerdown', e => { e.preventDefault(); ptrDown(e.clientX, e.clientY); });
+  canvas.addEventListener('pointermove', e => { e.preventDefault(); ptrMove(e.clientX, e.clientY); });
+  canvas.addEventListener('pointerup', ptrUp);
+  canvas.addEventListener('pointercancel', ptrUp);
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); const t = e.touches[0]; ptrDown(t.clientX, t.clientY); }, { passive: false });
+  canvas.addEventListener('touchmove', e => { e.preventDefault(); const t = e.touches[0]; ptrMove(t.clientX, t.clientY); }, { passive: false });
+  canvas.addEventListener('touchend', e => { e.preventDefault(); ptrUp(); }, { passive: false });
+
+  // --- Main loop ---
+  function loop(ts) {
+    const t = ts / 1000;
+    const dt = Math.min(t - S.lastTime, 0.05);
+    S.lastTime = t; S.time = t;
+
+    const omega = mode === 'auto' ? autoFreq : S.userFreq;
+    const a = aBase * Math.max(0.2, 1 - 0.15 * omega);
+    const b = bBase * Math.max(0.0, Math.pow(1 - 0.28 * omega, 2));
+
+    if (mode === 'auto') {
+      S.userPhase += autoFreq * TAU * dt;
+      S.userPos = Math.sin(S.userPhase);
+    } else if (S.touching) {
+      S.userPhase = Math.asin(Math.max(-1, Math.min(1, S.userPos)));
+    } else {
+      S.userPos *= 0.95;
+    }
+
+    const phi = norm(S.simPhase - S.userPhase);
+    const dPhi = hkbDPhi(phi, a, b);
+    const simFreq = mode === 'auto' ? autoFreq : S.userFreq;
+    S.simPhase += simFreq * TAU * dt + dPhi * dt + (Math.random() - 0.5) * noise * Math.sqrt(dt);
+    S.simPos = Math.sin(S.simPhase);
+
+    const currentPhi = norm(S.simPhase - S.userPhase);
+    if (Math.abs(currentPhi) < 0.5 && Math.abs(prevRelPhase) > 2.2) {
+      S.transitionDetected = true;
+      S.transitionTime = t;
+    }
+    prevRelPhase = currentPhi;
+    S.phaseHistory.push(currentPhi);
+    if (S.phaseHistory.length > 600) S.phaseHistory = S.phaseHistory.slice(-300);
+
+    draw(a, b);
+    requestAnimationFrame(loop);
+  }
+
+  function draw(a, b) {
+    const dpr = window.devicePixelRatio || 1;
+    const r = canvas.getBoundingClientRect();
+    const w = r.width, h = r.height;
+    ctx.clearRect(0, 0, w * dpr, h * dpr);
+    ctx.save(); ctx.scale(dpr, dpr);
+
+    // BG
+    const bg = ctx.createLinearGradient(0, 0, 0, h);
+    bg.addColorStop(0, '#0a0a12'); bg.addColorStop(0.5, '#0f1024'); bg.addColorStop(1, '#0a0a12');
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
+
+    // Grid
+    ctx.strokeStyle = 'rgba(100,120,255,0.04)'; ctx.lineWidth = 1;
+    for (let y = 0; y < h; y += 30) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+
+    // Tracks
+    const trackW = 60, trackH = h * 0.44, trackY = h * 0.1;
+    const ux = w * 0.3, sx = w * 0.7;
+
+    for (const [tx, isU] of [[ux, true], [sx, false]]) {
+      const c = isU ? '255,120,80' : '80,180,255';
+      const g = ctx.createLinearGradient(tx - trackW/2, trackY, tx - trackW/2, trackY + trackH);
+      g.addColorStop(0, `rgba(${c},0.06)`); g.addColorStop(0.5, `rgba(${c},0.12)`); g.addColorStop(1, `rgba(${c},0.06)`);
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.roundRect(tx - trackW/2, trackY, trackW, trackH, 30); ctx.fill();
+      ctx.strokeStyle = `rgba(${c},0.2)`; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.roundRect(tx - trackW/2, trackY, trackW, trackH, 30); ctx.stroke();
+      ctx.strokeStyle = `rgba(${c},0.1)`; ctx.setLineDash([4,4]);
+      ctx.beginPath(); ctx.moveTo(tx, trackY+10); ctx.lineTo(tx, trackY+trackH-10); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Finger positions
+    const uy = trackY + trackH/2 + S.userPos * (trackH/2 - 25);
+    const sy = trackY + trackH/2 + S.simPos * (trackH/2 - 25);
+
+    // Glows
+    for (const [x, y, c] of [[ux, uy, '255,120,80'], [sx, sy, '80,180,255']]) {
+      const gl = ctx.createRadialGradient(x, y, 0, x, y, 40);
+      gl.addColorStop(0, `rgba(${c},0.4)`); gl.addColorStop(1, `rgba(${c},0)`);
+      ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(x, y, 40, 0, TAU); ctx.fill();
+    }
+
+    // User circle
+    ctx.fillStyle = '#ff7850'; ctx.shadowColor = '#ff7850'; ctx.shadowBlur = 20;
+    ctx.beginPath(); ctx.arc(ux, uy, 18, 0, TAU); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.fillStyle = '#fff'; ctx.font = "bold 11px 'JetBrains Mono',monospace";
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('YOU', ux, uy);
+
+    // Sim circle
+    ctx.fillStyle = '#50b4ff'; ctx.shadowColor = '#50b4ff'; ctx.shadowBlur = 20;
+    ctx.beginPath(); ctx.arc(sx, sy, 18, 0, TAU); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.fillStyle = '#fff'; ctx.fillText('HKB', sx, sy);
+
+    // Connection
+    const cp = norm(S.simPhase - S.userPhase);
+    ctx.strokeStyle = `rgba(200,180,255,${0.15 + 0.15 * Math.cos(cp)})`;
+    ctx.lineWidth = 2; ctx.setLineDash([6,6]);
+    ctx.beginPath(); ctx.moveTo(ux+20, uy);
+    ctx.bezierCurveTo(w*0.5, uy, w*0.5, sy, sx-20, sy); ctx.stroke(); ctx.setLineDash([]);
+
+    // Labels
+    ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.font = "600 11px 'JetBrains Mono',monospace";
+    ctx.textAlign = 'center';
+    ctx.fillText('YOUR FINGER', ux, trackY - 12);
+    ctx.fillText('HKB MODEL', sx, trackY - 12);
+
+    // --- Phase plot ---
+    const plotX = 30, plotY = trackY + trackH + h * 0.04;
+    const plotW = w - 60, plotH = h * 0.18;
+
+    ctx.fillStyle = 'rgba(255,255,255,0.02)';
+    ctx.beginPath(); ctx.roundRect(plotX, plotY, plotW, plotH, 8); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.roundRect(plotX, plotY, plotW, plotH, 8); ctx.stroke();
+
+    const plotCY = plotY + plotH/2;
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(plotX, plotCY); ctx.lineTo(plotX+plotW, plotCY); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+    ctx.beginPath(); ctx.moveTo(plotX, plotY+10); ctx.lineTo(plotX+plotW, plotY+10); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(plotX, plotY+plotH-10); ctx.lineTo(plotX+plotW, plotY+plotH-10); ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.font = "10px 'JetBrains Mono',monospace";
+    ctx.textAlign = 'left';
+    ctx.fillText('π', plotX-14, plotY+14); ctx.fillText('0', plotX-12, plotCY+4); ctx.fillText('-π', plotX-18, plotY+plotH-6);
+    ctx.textAlign = 'center'; ctx.fillText('RELATIVE PHASE (Φ)', plotX+plotW/2, plotY-8);
+
+    // Trace
+    const hist = S.phaseHistory;
+    if (hist.length > 1) {
+      ctx.beginPath(); ctx.strokeStyle = 'rgba(180,140,255,0.8)'; ctx.lineWidth = 2;
+      const mp = Math.min(hist.length, 300), si = hist.length - mp;
+      for (let i = 0; i < mp; i++) {
+        const px = plotX + (i/300)*plotW;
+        const py = plotCY - (hist[si+i]/Math.PI)*(plotH/2-10);
+        i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+    }
+
+    // --- Potential ---
+    const potY = plotY + plotH + h * 0.04;
+    const potW = plotW, potH = h * 0.1;
+
+    ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.font = "10px 'JetBrains Mono',monospace";
+    ctx.textAlign = 'center';
+    ctx.fillText('HKB POTENTIAL  V(Φ) = -a·cos(Φ) - b·cos(2Φ)', plotX+potW/2, potY-8);
+
+    ctx.beginPath(); ctx.strokeStyle = 'rgba(120,255,180,0.6)'; ctx.lineWidth = 2;
+    let maxV = 0; const pv = [];
+    for (let i = 0; i <= 200; i++) {
+      const phi = -Math.PI + (i/200)*TAU;
+      const V = -a*Math.cos(phi) - b*Math.cos(2*phi);
+      pv.push(V); if (Math.abs(V) > maxV) maxV = Math.abs(V);
+    }
+    if (maxV === 0) maxV = 1;
+    for (let i = 0; i <= 200; i++) {
+      const px = plotX + (i/200)*potW;
+      const py = potY + potH/2 + (pv[i]/(maxV*1.3))*(potH/2-5);
+      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+
+    // Phase marker on potential
+    const mi = ((cp + Math.PI)/TAU)*200;
+    const mx = plotX + (mi/200)*potW;
+    const mv = -a*Math.cos(cp) - b*Math.cos(2*cp);
+    const my = potY + potH/2 + (mv/(maxV*1.3))*(potH/2-5);
+    ctx.fillStyle = '#fff'; ctx.shadowColor = '#fff'; ctx.shadowBlur = 10;
+    ctx.beginPath(); ctx.arc(mx, my, 5, 0, TAU); ctx.fill(); ctx.shadowBlur = 0;
+
+    ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.font = "9px 'JetBrains Mono',monospace";
+    ctx.textAlign = 'center';
+    ctx.fillText('-π', plotX, potY+potH+14);
+    ctx.fillText('0', plotX+potW/2, potY+potH+14);
+    ctx.fillText('π', plotX+potW, potY+potH+14);
+
+    // --- Readout ---
+    const ry = trackY * 0.55;
+    ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.font = "600 13px 'JetBrains Mono',monospace";
+    ctx.textAlign = 'center';
+    const deg = (cp * 180 / Math.PI).toFixed(0);
+    ctx.fillText(`Φ = ${cp.toFixed(2)} rad  (${deg}°)`, w/2, ry);
+    const label = Math.abs(cp) < 0.3 ? 'IN-PHASE' : Math.abs(Math.abs(cp)-Math.PI) < 0.4 ? 'ANTI-PHASE' : '';
+    if (label) {
+      ctx.fillStyle = label === 'IN-PHASE' ? 'rgba(120,255,160,0.8)' : 'rgba(255,180,100,0.8)';
+      ctx.font = "bold 11px 'JetBrains Mono',monospace";
+      ctx.fillText(label, w/2, ry+18);
+    }
+
+    if (S.transitionDetected && S.time - S.transitionTime < 2) {
+      const al = Math.max(0, 1-(S.time-S.transitionTime)/2);
+      ctx.fillStyle = `rgba(255,220,80,${al*0.9})`;
+      ctx.font = "bold 14px 'JetBrains Mono',monospace";
+      ctx.fillText('⚡ PHASE TRANSITION ⚡', w/2, ry+38);
+    }
+
+    ctx.restore();
+  }
+
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
