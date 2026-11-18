@@ -25,6 +25,9 @@ The portal card uses, from the page itself:
 | tags        | `<meta name="keywords" content="a, b">`  |
 | date        | first git commit of the file             |
 
+Every doodle gets a small "← doodles" link back to the portal in the bottom-left corner. It is added
+at build time; the files in `pages/` stay exactly as you downloaded them.
+
 ## Preview locally
 
 ```bash

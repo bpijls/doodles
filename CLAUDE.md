@@ -20,7 +20,8 @@ pages/*.html ──scripts/build.py──> _site/ (index.html + doodles.json + p
 ```
 pages/                    one doodle per <slug>.html, or <slug>/index.html for multi-file ones
 index.template.html       portal page; build.py replaces the `/*DOODLES*/[]` marker with the JSON list
-scripts/build.py          scans pages/, reads <title>, meta description/keywords, git first-commit date
+scripts/build.py          scans pages/, reads <title>, meta description/keywords, git first-commit date;
+                          injects the back-to-portal link into each doodle in _site/
 scripts/dns.py            TransIP CNAME helper; runs from ~/projects/hva/pagelink with its venv + .env
 add.sh                    add + commit + push helper
 CNAME                     doodles.feib.nl (copied into _site/)
@@ -33,4 +34,6 @@ CNAME                     doodles.feib.nl (copied into _site/)
   settings, the `CNAME` file alone does nothing for Actions deploys.
 - Checkout uses `fetch-depth: 0` — the card date comes from `git log`; shallow clones would date everything today.
 - Repo is public, so the paws self-hosted runner can't be used (add-repo.sh refuses public repos).
-- Doodle pages are served as-is; nothing in them is rewritten.
+- Doodle files in `pages/` are never modified. At build time `build.py` injects a "← doodles" link
+  (a `<doodles-backlink>` element with a shadow root, before the last `</body>`) into each entry page in
+  `_site/` only. It skips itself when the doodle is framed. Other files of a multi-file doodle are left alone.

@@ -69,11 +69,50 @@ def collect() -> list[dict]:
     return sorted(entries, key=lambda e: (e["date"], e["slug"]), reverse=True)
 
 
+# Injected into each doodle's entry page (only in _site/; pages/ stays untouched). A shadow root keeps
+# the doodle's CSS and the link's CSS from affecting each other.
+BACKLINK = """
+<doodles-backlink></doodles-backlink>
+<script>
+(() => {
+  const host = document.querySelector("doodles-backlink");
+  if (!host || window.top !== window.self) return host && host.remove();
+  const root = host.attachShadow({mode: "open"});
+  root.innerHTML = `<style>
+    a { position: fixed; left: 12px; bottom: 12px; z-index: 2147483647;
+        display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px 6px 10px;
+        font: 500 13px/1 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        color: #fffdf8; background: rgba(29,27,24,.72); border-radius: 99px; text-decoration: none;
+        backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+        opacity: .55; transition: opacity .15s; }
+    a:hover, a:focus-visible { opacity: 1; outline: 2px solid #fb923c; outline-offset: 2px; }
+    @media print { a { display: none; } }
+  </style><a href="/" aria-label="Back to all doodles">&larr; doodles</a>`;
+})();
+</script>
+"""
+BODY_END_RE = re.compile(r"</body\s*>", re.I)
+
+
+def add_backlink(path: Path) -> None:
+    text = path.read_text(encoding="utf-8", errors="replace")
+    ends = list(BODY_END_RE.finditer(text))
+    if ends:
+        i = ends[-1].start()
+        text = text[:i] + BACKLINK + text[i:]
+    else:
+        text += BACKLINK
+    path.write_text(text, encoding="utf-8")
+
+
 def main() -> None:
     entries = collect()
     if OUT.exists():
         shutil.rmtree(OUT)
     shutil.copytree(PAGES, OUT / "pages", ignore=shutil.ignore_patterns(".*"))
+    for e in entries:
+        href = OUT / e["href"]
+        add_backlink(href / "index.html" if e["href"].endswith("/") else href)
     for extra in ("CNAME", "favicon.svg"):
         if (ROOT / extra).exists():
             shutil.copy(ROOT / extra, OUT / extra)
