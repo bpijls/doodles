@@ -1,0 +1,1651 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Algebra Cleanup</title>
+<meta name="description" content="Simplify algebra by exploding powers, numbers and terms into tiles and regrouping them. Levels and endless practice, in English and Dutch.">
+<meta name="keywords" content="game, math, algebra, education">
+<style>
+  /* page skeleton that the Claude artifact host normally provides */
+  :root { color-scheme: light; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  body { margin: 0; font: 14px system-ui, -apple-system, "Segoe UI", sans-serif; }
+  img { max-width: 100%; }
+  [hidden] { display: none !important; }
+</style>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=STIX+Two+Text:ital,wght@1,500&display=swap">
+<style>
+/* Layout: one-screen mobile app. Header, squared-paper board, margin note, sticky tool bar. */
+:root {
+  --paper: #f4f7fb; --grid: #dbe4ef; --ink: #182233; --muted: #5b6a80;
+  --accent: #2f4fd6; --arc: #e2462f; --hl: #ffe45c; --warn: #c2410c; --good: #15803d;
+  --tray: rgba(47, 79, 214, .045); --line: #c3cfdf; --card: #ffffff;
+  --num: #ffffff; --num-edge: #c3cfdf; --edge: rgba(24, 34, 51, .22);
+  --va: #0e8a8c; --vb: #d9701a; --vx: #7a4fd6; --vy: #d0406f; --vz: #4a6a2a; --on-var: #ffffff;
+  --f-display: "Bricolage Grotesque", "Arial Rounded MT Bold", system-ui, sans-serif;
+  --f-body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-math: "STIX Two Text", "Cambria Math", "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #121824; --grid: #1e2737; --ink: #e8edf5; --muted: #9aa8bd;
+  --accent: #8ea4ff; --arc: #ff7a5c; --hl: #8a7413; --warn: #fb923c; --good: #4ade80;
+  --tray: rgba(142, 164, 255, .06); --line: #34425a; --card: #1a2232;
+  --num: #222c3e; --num-edge: #3b4a63; --edge: rgba(0, 0, 0, .5);
+  --va: #13999b; --vb: #d6721f; --vx: #8462e0; --vy: #d4497a; --vz: #5c7f36; --on-var: #ffffff;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --paper: #121824; --grid: #1e2737; --ink: #e8edf5; --muted: #9aa8bd;
+  --accent: #8ea4ff; --arc: #ff7a5c; --hl: #8a7413; --warn: #fb923c; --good: #4ade80;
+  --tray: rgba(142, 164, 255, .06); --line: #34425a; --card: #1a2232;
+  --num: #222c3e; --num-edge: #3b4a63; --edge: rgba(0, 0, 0, .5);
+  --va: #13999b; --vb: #d6721f; --vx: #8462e0; --vy: #d4497a; --vz: #5c7f36; --on-var: #ffffff;
+  color-scheme: dark; }
+
+html, body { height: 100%; }
+body {
+  background: var(--paper); color: var(--ink); font-family: var(--f-body); font-size: 16px;
+  -webkit-tap-highlight-color: transparent;
+}
+.app {
+  min-height: 100%; display: flex; flex-direction: column; max-width: 820px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 12px 0;
+}
+button { font: inherit; color: inherit; }
+button:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+
+/* header */
+.top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.brand { font-family: var(--f-display); font-weight: 800; font-size: 1.25rem; letter-spacing: -.01em; margin-right: auto; }
+.brand span { color: var(--accent); }
+.chipbtn {
+  border: 2px solid var(--line); background: var(--card); border-radius: 999px; padding: 6px 12px;
+  cursor: pointer; font-weight: 700; font-size: .9rem; display: inline-flex; align-items: center; gap: 6px; min-height: 40px;
+}
+.chipbtn:hover { border-color: var(--accent); }
+.lvlrow { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.lvlrow h1 { font-family: var(--f-display); font-weight: 800; font-size: 1.6rem; margin: 0; letter-spacing: -.02em; }
+.badge { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); border: 1.5px solid currentColor; border-radius: 6px; padding: 2px 6px; }
+.moves { margin-left: auto; color: var(--muted); font-size: .9rem; font-variant-numeric: tabular-nums; }
+.moves b { color: var(--ink); }
+
+/* written-out notation */
+.written { margin-top: 8px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; color: var(--muted); font-size: .85rem; min-height: 44px; }
+.written .label { text-transform: uppercase; letter-spacing: .08em; font-weight: 700; font-size: .7rem; }
+.written .expr-n { color: var(--ink); font-size: 1.35rem; }
+.mx, .expr-n { font-family: var(--f-math); white-space: nowrap; }
+.mv { font-family: var(--f-math); font-style: italic; }
+.mx sup, .expr-n sup { font-size: .62em; }
+.nfrac { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; margin: 0 .15em; }
+.nfrac .nn { border-bottom: 1.5px solid currentColor; padding: 0 .2em; }
+.nfrac .nd { padding: 0 .2em; }
+
+/* board: squared paper */
+.board {
+  flex: 1 0 auto; min-height: 300px; margin-top: 8px; border-radius: 18px; border: 2px solid var(--line);
+  background-color: var(--paper);
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 22px 22px; background-position: -1px -1px;
+  display: flex; align-items: center; justify-content: center; padding: 22px 10px; position: relative;
+}
+.board { touch-action: none; }
+.paths { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 6; overflow: visible; }
+.paths path { fill: none; stroke: var(--arc); stroke-width: 3; stroke-linecap: round; }
+.ghost { position: absolute; margin: 0; pointer-events: none; z-index: 7; }
+.trail { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; overflow: visible; }
+.trail polyline { fill: none; stroke: var(--hl); stroke-width: 30; stroke-linecap: round; stroke-linejoin: round; opacity: .55; }
+.tile.swept { box-shadow: 0 4px 0 var(--edge), 0 0 0 4px var(--hl); transform: translateY(-3px); }
+.expr { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; max-width: 100%; }
+.frac { display: flex; flex-direction: column; align-items: stretch; gap: 10px; min-width: 0; max-width: 100%; }
+.side { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; }
+.bar { height: 4px; border-radius: 2px; background: var(--ink); }
+.fbar { border: 0; padding: 0; height: 22px; background: transparent; cursor: pointer; position: relative; margin: -9px 0; }
+.fbar::before { content: ""; position: absolute; left: 0; right: 0; top: 9px; height: 4px; border-radius: 2px; background: var(--ink); transition: background .15s, height .15s, top .15s; }
+.fbar:hover::before { background: var(--accent); height: 6px; top: 8px; }
+.expr.stack { flex-direction: column; flex-wrap: nowrap; gap: 14px; }
+.opchip.bigbar { border-radius: 4px; border: 0; min-height: 0; height: 8px; width: 100%; min-width: 120px; background: var(--ink); padding: 0; }
+.opchip.bigbar:hover { background: var(--accent); }
+.nfrac.big { font-size: 1.1em; }
+.sign { font-family: var(--f-math); font-size: 2rem; line-height: 1; padding: 0 2px; }
+.term {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 5px;
+  padding: 9px; border-radius: 16px; border: 2px dashed var(--line); background: var(--tray); cursor: pointer;
+  max-width: 100%; transition: border-color .15s, background .15s;
+}
+.term.solo { border-color: transparent; background: transparent; }
+.term.solo:hover { border-color: var(--line); }
+.term.sel { border: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.term.partner { border-color: var(--accent); animation: breathe 1.2s ease-in-out infinite; }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: .6; flex: none; }
+
+.tile {
+  border: 0; min-height: 54px; min-width: 48px; padding: 0 11px; border-radius: 13px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; position: relative;
+  box-shadow: 0 4px 0 var(--edge); transition: transform .12s ease, box-shadow .12s ease;
+  touch-action: manipulation; user-select: none;
+}
+.tile:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--edge); }
+.tile sup { font-family: var(--f-body); font-style: normal; font-weight: 700; font-size: 15px; align-self: flex-start; margin: 7px 0 0 2px; }
+.tile.v { background: var(--c); color: var(--on-var); font-family: var(--f-math); font-style: italic; font-size: 30px; }
+.tile.n { background: var(--num); border: 2px solid var(--num-edge); font-weight: 700; font-size: 24px; font-variant-numeric: tabular-nums; }
+.tile.g { background: var(--card); border: 2px solid var(--line); gap: 3px; padding: 0 8px; font-size: 22px; }
+.tile.g .paren { font-family: var(--f-math); font-size: 40px; color: var(--muted); line-height: 1; }
+.tile.p { background: var(--card); border: 2px solid var(--line); gap: 2px; padding: 6px 6px; cursor: pointer; }
+.tile.p > .paren { font-family: var(--f-math); font-size: 54px; color: var(--muted); line-height: 1; padding: 0 2px; }
+.tile.p > .side { gap: 6px; }
+.tile.p .term { padding: 6px; }
+.tile.p .sign { font-size: 1.6rem; }
+.tile.p.sel { transform: translateY(-3px); }
+.mini { display: inline-flex; align-items: center; justify-content: center; border-radius: 7px; min-width: 28px; height: 32px; padding: 0 5px; font-size: 19px; }
+.mini.v { background: var(--c); color: var(--on-var); font-family: var(--f-math); font-style: italic; }
+.mini.n { border: 1.5px solid var(--num-edge); font-weight: 700; }
+.mini sup { font-size: 11px; margin: 2px 0 0 1px; }
+
+.tile.sel { transform: translateY(-5px); box-shadow: 0 9px 0 var(--edge), 0 0 0 3px var(--paper), 0 0 0 6px var(--accent); }
+.tile.partner { animation: breathe 1.2s ease-in-out infinite; }
+@keyframes breathe { 0%, 100% { box-shadow: 0 4px 0 var(--edge), 0 0 0 0 transparent; } 50% { box-shadow: 0 4px 0 var(--edge), 0 0 0 5px color-mix(in srgb, var(--accent) 45%, transparent); } }
+.hint { box-shadow: 0 4px 0 var(--edge), 0 0 0 6px var(--hl) !important; }
+.term.hint, .opchip.hint { border-color: var(--hl); box-shadow: 0 0 0 5px var(--hl) !important; }
+.born { animation: pop .38s cubic-bezier(.3, 1.6, .5, 1) both; }
+@keyframes pop { from { transform: scale(.35); opacity: 0; } }
+.vanish { animation: vanish .4s ease-in forwards; }
+@keyframes vanish { 30% { transform: scale(1.12); } to { transform: scale(.1) rotate(-25deg); opacity: 0; } }
+.shake { animation: shake .45s ease; }
+@keyframes shake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+
+.opchip {
+  font-family: var(--f-math); font-size: 2.2rem; min-width: 52px; min-height: 52px; border-radius: 50%;
+  border: 2px dashed var(--accent); background: var(--card); color: var(--accent); cursor: pointer; line-height: 1;
+}
+
+/* margin note */
+.note {
+  margin-top: 10px; padding: 12px 14px; border-radius: 12px; background: var(--card); border: 2px solid var(--line);
+  line-height: 1.5; min-height: 3.2em; max-width: 68ch; align-self: center; width: 100%;
+}
+.note.ok { border-color: color-mix(in srgb, var(--good) 55%, var(--line)); }
+.note.warn { border-color: var(--warn); }
+.note.warn::before { content: "✋ "; }
+.note .mx { font-size: 1.12em; }
+
+/* tool bar */
+.tools {
+  position: sticky; bottom: 0; margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+  padding-block: 10px calc(10px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(transparent, var(--paper) 30%);
+}
+.tool {
+  min-height: 48px; padding: 0 16px; border-radius: 14px; border: 2px solid var(--line); background: var(--card);
+  font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+}
+.tool.main { background: var(--accent); border-color: var(--accent); color: var(--paper); }
+.tool:disabled { opacity: .4; cursor: default; }
+.tool svg { width: 18px; height: 18px; }
+
+/* sheets */
+.scrim { position: fixed; inset: 0; background: rgba(10, 14, 22, .45); display: flex; align-items: flex-end; justify-content: center; z-index: 20; }
+.sheet {
+  background: var(--card); width: 100%; max-width: 560px; border-radius: 22px 22px 0 0; animation: rise .3s ease-out;
+  padding-block: 22px calc(22px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px));
+}
+@keyframes rise { from { transform: translateY(40px); opacity: 0; } }
+.sheet h2 { font-family: var(--f-display); font-weight: 800; margin: 0 0 6px; font-size: 2.2rem; letter-spacing: -.02em; }
+.sheet .result { font-size: 2rem; margin: 6px 0 4px; }
+.sheet p { color: var(--muted); margin: 6px 0 16px; }
+.sheet .row { display: flex; gap: 10px; flex-wrap: wrap; }
+.lvlgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 10px; margin-top: 12px; }
+.chipbtn.on { border-color: var(--accent); color: var(--accent); }
+.plabel { text-transform: uppercase; letter-spacing: .08em; font-weight: 700; font-size: .72rem; color: var(--muted); margin: 14px 0 8px; }
+.pchips { display: flex; flex-wrap: wrap; gap: 8px; }
+.pchip { min-height: 44px; padding: 0 14px; border-radius: 999px; border: 2px solid var(--line); background: var(--paper); cursor: pointer; font-weight: 700; }
+.pchip.on { background: var(--accent); border-color: var(--accent); color: var(--paper); }
+.pwarn { color: var(--warn) !important; margin: 10px 0 0 !important; }
+.lvlbtn {
+  min-height: 60px; border-radius: 14px; border: 2px solid var(--line); background: var(--paper); cursor: pointer;
+  font-weight: 700; font-size: 1.1rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.lvlbtn small { font-size: .65rem; color: var(--muted); font-weight: 400; }
+.lvlbtn.done { border-color: var(--good); }
+.lvlbtn.cur { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.lvlbtn.book small { color: var(--accent); }
+.board.won .tile { animation: shine .6s ease both; }
+@keyframes shine { 50% { transform: translateY(-8px) rotate(-3deg); } }
+
+@media (max-width: 420px) {
+  .tile { min-height: 48px; min-width: 42px; padding: 0 9px; }
+  .tile.v { font-size: 26px; }
+  .tile.n { font-size: 21px; }
+  .board { padding: 18px 6px; }
+  .tool { padding: 0 12px; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand" id="brand">Algebra <span>Cleanup</span></div>
+    <button class="chipbtn" id="btnLevels" type="button"></button>
+    <button class="chipbtn" id="btnPractice" type="button"></button>
+    <button class="chipbtn" id="btnLang" type="button" aria-label="Language"></button>
+    <button class="chipbtn" id="btnRestart" type="button"></button>
+  </header>
+  <div class="lvlrow"><h1 id="lvlTitle"></h1><span class="badge" id="lvlBadge" hidden></span><span class="moves" id="moves"></span></div>
+  <div class="written"><span class="label" id="writtenLabel"></span><span class="expr-n" id="written"></span></div>
+  <main class="board" id="board" aria-live="polite"></main>
+  <div class="note" id="note" role="status"></div>
+  <nav class="tools" id="tools">
+    <button class="tool" id="btnUndo" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg><span></span></button>
+    <button class="tool" id="btnHint" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg><span></span></button>
+    <button class="tool main" id="btnExplode" type="button" hidden><span></span></button>
+    <button class="tool" id="btnGather" type="button" hidden><span></span></button>
+    <button class="tool main" id="btnSplit" type="button" hidden><span></span></button>
+    <button class="tool" id="btnSkip" type="button" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4l10 8-10 8z"/><path d="M19 5v14"/></svg><span></span></button>
+  </nav>
+</div>
+<div id="sheetHost"></div>
+
+<script>
+/* ===== CORE: algebra model and moves (no DOM) ===== */
+let uid = 1;
+const nid = () => uid++;
+const N = v => ({ k: 'n', v, id: nid() });
+const V = (b, e = 1) => ({ k: 'v', b, e, id: nid() });
+const G = (f, e) => ({ k: 'g', f, e, id: nid() });          // bracket around a product, with exponent
+const Pr = terms => ({ k: 'p', terms, e: 1, id: nid() });  // bracket around a sum
+const T = (f, neg = false) => ({ k: 't', f, neg, id: nid() });
+const F = (num, den) => ({ num, den: den || [T([N(1)])] });
+const MAX_VAR = 16, MAX_GROUP = 8, MAX_SPLIT = 12;
+
+const cloneF = f => f.k === 'n' ? N(f.v) : f.k === 'v' ? V(f.b, f.e) : f.k === 'g' ? G(f.f.map(cloneF), f.e) : Pr(f.terms.map(cloneT));
+const cloneT = t => T(t.f.map(cloneF), t.neg);
+const gcd = (a, b) => { a = Math.abs(a); b = Math.abs(b); while (b) [a, b] = [b, a % b]; return a; };
+function primeFactors(n) { const r = []; let d = 2; while (n > 1) { while (n % d === 0) { r.push(d); n /= d; } d++; } return r; }
+const fkey = f => f.k === 'n' ? 'n' + f.v : f.k === 'v' ? f.b + '^' + f.e : f.k === 'g' ? '(' + f.f.map(fkey).join('*') + ')^' + f.e
+  : '[' + f.terms.map(t => (t.neg ? '-' : '+') + t.f.map(fkey).sort().join('*')).join('') + ']';
+const innerKey = g => g.f.map(fkey).join('*');
+function canMerge(x, y) {
+  if (x.k !== y.k || x.k === 'p') return false;
+  if (x.k === 'n') return true;
+  if (x.k === 'v') return x.b === y.b;
+  return innerKey(x) === innerKey(y);
+}
+function mergeF(x, y) {
+  if (x.k === 'n') return N(x.v * y.v);
+  if (x.k === 'v') return V(x.b, x.e + y.e);
+  return G(x.f.map(cloneF), x.e + y.e);
+}
+const varPart = t => t.f.filter(f => f.k === 'v');
+const sig = t => t.f.filter(f => f.k === 'v' || f.k === 'p').map(f => f.k === 'v' ? f.b + f.e : fkey(f)).sort().join('.');
+const coefAbs = t => { const n = t.f.find(f => f.k === 'n'); return n ? n.v : 1; };
+const coef = t => coefAbs(t) * (t.neg ? -1 : 1);
+const isOne = den => den.length === 1 && !den[0].neg && den[0].f.length === 1 && den[0].f[0].k === 'n' && den[0].f[0].v === 1;
+const SIDES = ['num', 'den'];
+
+/* A term is tidy when it reads as: one number, each letter once (and, if allowed, one clean bracket). */
+function tidy(t, allowB) {
+  let n = 0, p = 0; const bs = new Set();
+  for (const f of t.f) {
+    if (f.k === 'g') return false;
+    if (f.k === 'p') { if (!allowB || !sumClean(f.terms)) return false; p++; }
+    else if (f.k === 'n') n++;
+    else { if (bs.has(f.b)) return false; bs.add(f.b); }
+  }
+  return n <= 1 && p <= 1;
+}
+function sumClean(terms) {
+  if (terms.length < 2 || !terms.every(t => tidy(t, true))) return false;
+  const s = terms.map(sig); return new Set(s).size === s.length;
+}
+
+function cleanTerm(t) {
+  t.f = t.f.filter(f => !((f.k === 'v' || f.k === 'g') && f.e === 0));
+  if (t.f.length > 1) t.f = t.f.filter(f => !(f.k === 'n' && f.v === 1));
+  if (!t.f.length) t.f = [N(1)];
+  return t;
+}
+function normTerms(terms) {
+  for (const t of terms) {
+    const nf = [];
+    for (const f of t.f) {
+      if (f.k === 'p') {
+        normTerms(f.terms);
+        if (f.terms.length === 1) { const it = f.terms[0]; if (it.neg) t.neg = !t.neg; nf.push(...it.f); continue; }
+      }
+      nf.push(f);
+    }
+    t.f = nf;
+    cleanTerm(t);
+  }
+  for (let i = 0; i < terms.length; i++) {
+    const t = terms[i];
+    if (t.f.length === 1 && t.f[0].k === 'p') {
+      const inner = t.f[0].terms;
+      if (t.neg) inner.forEach(it => { it.neg = !it.neg; });
+      terms.splice(i, 1, ...inner); i += inner.length - 1;
+    }
+  }
+}
+const isUnit = side => side.length === 1 && side[0].f.length === 1 && side[0].f[0].k === 'n' && side[0].f[0].v === 1;
+function negate(side) {
+  if (side.length === 1) side[0].neg = !side[0].neg;
+  else side.forEach(t => { t.neg = !t.neg; });
+}
+function normalize(S) {
+  for (const P of S.parts) for (const side of SIDES) {
+    normTerms(P[side]);
+    if (!P[side].length) P[side] = [T([N(side === 'num' ? 0 : 1)])];
+  }
+  // a fraction that is used up (±1 over ±1) disappears; its sign goes to the other one
+  for (let i = 0; S.parts.length > 1 && i < S.parts.length; i++) {
+    const P = S.parts[i];
+    if (isUnit(P.num) && isUnit(P.den)) {
+      const other = S.parts[1 - i];
+      if (P.num[0].neg !== P.den[0].neg) negate(other.num);
+      S.parts.splice(i, 1); i--;
+    }
+  }
+  // (a/1) / (b/1) is just a/b
+  if (S.parts.length === 2 && S.op === '/' && isOne(S.parts[0].den) && isOne(S.parts[1].den))
+    S.parts = [F(S.parts[0].num, S.parts[1].num)];
+  if (S.parts.length === 1) S.op = null;
+}
+
+function isFactored(S) {
+  if (S.parts.length > 1) return false;
+  const P = S.parts[0];
+  if (!isOne(P.den) || P.num.length !== 1) return false;
+  const t = P.num[0];
+  const ps = t.f.filter(f => f.k === 'p');
+  if (ps.length !== 1 || !tidy(t, true)) return false;
+  const inner = ps[0].terms;
+  let g = 0; inner.forEach(it => { g = gcd(g, coefAbs(it)); });
+  if (g > 1) return false;
+  return !varPart(inner[0]).some(v => inner.every(it => varPart(it).some(w => w.b === v.b)));
+}
+function isClean(S) {
+  if (S.goal === 'factor') return isFactored(S);
+  if (S.parts.length > 1) return false;
+  const P = S.parts[0];
+  for (const side of SIDES) {
+    const ts = P[side];
+    if (!ts.every(t => tidy(t, !!S.allowB))) return false;
+    const sigs = ts.map(sig);
+    if (new Set(sigs).size !== sigs.length) return false;
+  }
+  if (isOne(P.den)) return true;
+  const all = [...P.num, ...P.den];
+  let g = 0; for (const t of all) g = gcd(g, coefAbs(t));
+  if (g > 1) return false;
+  const shared = varPart(all[0]).map(f => f.b).filter(b => all.every(t => varPart(t).some(f => f.b === b)));
+  return shared.length === 0;
+}
+
+/* walk every term and factor, including those inside brackets */
+function walkTerms(terms, ctx, fn) {
+  terms.forEach((term, t) => {
+    fn({ kind: 't', ...ctx, t, term, terms });
+    term.f.forEach((f, i) => {
+      fn({ kind: 'f', ...ctx, t, i, term, terms, f });
+      if (f.k === 'p') walkTerms(f.terms, { ...ctx, depth: ctx.depth + 1 }, fn);
+    });
+  });
+}
+function walk(S, fn) { S.parts.forEach((P, p) => SIDES.forEach(side => walkTerms(P[side], { p, side, depth: 0 }, fn))); }
+function locate(S, id) {
+  let hit = null;
+  walk(S, L => { if (!hit && (L.kind === 't' ? L.term.id : L.f.id) === id) hit = L; });
+  if (hit && hit.kind === 'f') hit.i = hit.term.f.indexOf(hit.f);
+  return hit;
+}
+const eachFactor = (S, fn) => walk(S, L => L.kind === 'f' && fn(L));
+const eachTerm = (S, fn) => walk(S, L => L.kind === 't' && fn(L));
+function containers(S) { const out = []; walk(S, L => { if (L.kind === 't' && !out.includes(L.terms)) out.push(L.terms); }); return out; }
+
+/* ---- notation (HTML) ---- */
+function fx(f) {
+  if (f.k === 'n') return `<span class="mn">${f.v}</span>`;
+  if (f.k === 'v') return `<i class="mv">${f.b}</i>${f.e > 1 ? `<sup>${f.e}</sup>` : ''}`;
+  if (f.k === 'p') return `(${sumHTML(f.terms)})`;
+  return `(${factorsHTML(f.f)})${f.e > 1 ? `<sup>${f.e}</sup>` : ''}`;
+}
+const RANK = { n: 0, v: 1, g: 2, p: 3 };
+function factorsHTML(fs, sort) {
+  let list = fs;
+  if (sort) list = [...fs].sort((a, b) => RANK[a.k] - RANK[b.k] || (a.b || '').localeCompare(b.b || ''));
+  return list.map((f, i) => (i > 0 && f.k === 'n' ? '·' : '') + fx(f)).join('');
+}
+function termHTML(t) { return factorsHTML(t.f, tidy(t, true)); }
+function sumHTML(terms) {
+  return terms.map((t, i) => (i === 0 ? (t.neg ? '−' : '') : (t.neg ? ' − ' : ' + ')) + termHTML(t)).join('');
+}
+function fracHTML(P, showOne) {
+  if (isOne(P.den) && !showOne) return sumHTML(P.num);
+  return `<span class="nfrac"><span class="nn">${sumHTML(P.num)}</span><span class="nd">${sumHTML(P.den)}</span></span>`;
+}
+function stateHTML(S) {
+  if (S.parts.length > 1 && S.op === '/')
+    return `<span class="nfrac big"><span class="nn">${fracHTML(S.parts[0])}</span><span class="nd">${fracHTML(S.parts[1])}</span></span>`;
+  return S.parts.map(P => fracHTML(P, S.op === '·')).join(` <span class="nop">${S.op || ''}</span> `);
+}
+const mx = h => `<span class="mx">${h}</span>`;
+const bx = b => mx(`<i class="mv">${b}</i>`);
+
+/* ---- moves ---- each returns {ok,p,born} after mutating, or {no,p,ids} without mutating ---- */
+function opExplode(S, id) {
+  const L = locate(S, id), f = L.f, arr = L.term.f;
+  if (f.k === 'v') {
+    if (f.e < 2) return { no: 'atom', p: { x: mx(fx(f)) }, ids: [id] };
+    if (f.e > MAX_VAR) return { no: 'tooBig', ids: [id] };
+    const copies = Array.from({ length: f.e }, () => V(f.b, 1));
+    arr.splice(L.i, 1, ...copies);
+    return { ok: 'explodeVar', p: { x: mx(fx(f)), n: f.e, b: bx(f.b), ex: mx(copies.map(fx).join(' · ')) }, born: copies.map(c => c.id), origins: Object.fromEntries(copies.map(c => [c.id, [f.id]])) };
+  }
+  if (f.k === 'n') {
+    if (f.v === 1) return { no: 'atom', p: { x: mx('1') }, ids: [id] };
+    const pf = primeFactors(f.v);
+    if (pf.length < 2) return { no: 'prime', p: { n: f.v }, ids: [id] };
+    const parts = pf.map(N);
+    arr.splice(L.i, 1, ...parts);
+    return { ok: 'explodeNum', p: { n: f.v, ex: mx(pf.join(' · ')) }, born: parts.map(c => c.id), origins: Object.fromEntries(parts.map(c => [c.id, [f.id]])) };
+  }
+  if (f.k === 'p') {   // open the brackets: multiply everything outside with every term inside
+    const before = mx(termHTML(L.term));
+    const others = L.term.f.filter(g => g !== f);
+    const origins = {};
+    const nts = f.terms.map(it => {
+      const copies = others.map(o => { const k = cloneF(o); origins[k.id] = [o.id]; return k; });
+      return T([...copies, ...it.f], L.term.neg !== it.neg);   // inner pieces keep their identity and slide
+    });
+    L.terms.splice(L.t, 1, ...nts);
+    return { ok: others.length ? 'distribute' : 'unwrapSum', p: { x: before, ex: mx(sumHTML(nts)) }, born: Object.keys(origins).map(Number), origins, arcs: true };
+  }
+  if (f.e >= 2) {
+    if (f.e > MAX_GROUP) return { no: 'tooBig', ids: [id] };
+    const copies = Array.from({ length: f.e }, () => G(f.f.map(cloneF), 1));
+    arr.splice(L.i, 1, ...copies);
+    return { ok: 'explodeGroup', p: { e: f.e, x: mx(fx(f)), ex: mx(copies.map(fx).join(' · ')) }, born: copies.map(c => c.id), origins: Object.fromEntries(copies.map(c => [c.id, [f.id]])) };
+  }
+  const items = f.f.map(cloneF);
+  arr.splice(L.i, 1, ...items);
+  return { ok: 'unwrap', p: { x: mx(fx(f)), ex: mx(items.map(fx).join(' · ')) }, born: items.map(c => c.id), origins: Object.fromEntries(items.map(c => [c.id, [f.id]])) };
+}
+
+function related(x, y) { return canMerge(x, y) || (x.k === 'v' && y.k === 'v' && x.b === y.b); }
+function groupHasBase(g, b) { return g.k === 'g' && g.f.some(f => f.k === 'v' && f.b === b); }
+
+// only exactly equal pieces cancel: x³ with x³, 2 with 2
+function cancelCheck(x, y) {
+  if (x.k === 'v' && y.k === 'v' && x.b === y.b) {
+    if (x.e === y.e) return { type: 'cancel' };
+    const big = x.e > y.e ? x : y, small = big === x ? y : x;
+    return { type: 'fizzle', msg: 'cancelUnequal', p: { x: mx(fx(x)), y: mx(fx(y)), big: mx(fx(big)), small: mx(fx(small)) } };
+  }
+  if (x.k === 'n' && y.k === 'n') {
+    if (x.v === y.v) return x.v === 1 ? { type: 'none' } : { type: 'cancel' };
+    if (gcd(x.v, y.v) === 1) return { type: 'fizzle', msg: 'cancelCoprime', p: { a: x.v, b: y.v } };
+    return { type: 'fizzle', msg: 'cancelUnequalNum', p: { a: x.v, b: y.v } };
+  }
+  return null;
+}
+function pairCheck(S, A, B) {
+  const x = A.f, y = B.f;
+  if (A.p !== B.p) {
+    if (S.op !== '·') return { type: 'fizzle', msg: 'diffFrac' };
+    if (A.side === B.side) return { type: 'move' };
+    const PA = S.parts[A.p], PB = S.parts[B.p];
+    const single = PA[A.side].length === 1 && PB[B.side].length === 1 && !A.depth && !B.depth;
+    if (single) { const cr = cancelCheck(x, y); if (cr && cr.type !== 'none') return cr; }
+    return { type: 'fizzle', msg: 'crossSide' };
+  }
+  if (A.terms === B.terms) {
+    if (A.term === B.term) return canMerge(x, y) ? { type: 'merge' } : { type: 'none' };
+    if (x.k !== y.k || x.k === 'g' || x.k === 'p' || (x.k === 'v' && x.b !== y.b)) return { type: 'none' };
+    const strictA = tidy(A.term), strictB = tidy(B.term);
+    if (strictA && strictB && sig(A.term) === sig(B.term)) return { type: 'addTerms' };
+    // not like terms: the shared piece can go outside brackets (allowed everywhere)
+    if (x.k === 'n' && x.v !== y.v) {
+      if (gcd(x.v, y.v) === 1) return { type: 'fizzle', msg: S.goal === 'factor' ? 'noCommon' : 'notLike', p: { a: x.v, b: y.v, v1: mx(termHTML(A.term)), v2: mx(termHTML(B.term)) } };
+      return { type: 'fizzle', msg: 'explodeFirst', p: { a: x.v, b: y.v } };
+    }
+    if (x.k === 'n' && x.v === 1) return { type: 'none' };
+    if (x.k === 'v' && x.e !== y.e) {
+      if (S.goal !== 'factor' && strictA && strictB) return { type: 'fizzle', msg: 'notLike', p: { v1: mx(termHTML(A.term)), v2: mx(termHTML(B.term)) } };
+      const big = x.e > y.e ? x : y, small = big === x ? y : x;
+      return { type: 'fizzle', msg: 'explodeFirstVar', p: { x: mx(fx(x)), y: mx(fx(y)), big: mx(fx(big)), small: mx(fx(small)) } };
+    }
+    return { type: 'factor', useless: S.goal !== 'factor' && strictA && strictB };
+  }
+  if (A.side === B.side || A.depth || B.depth) {
+    if (!related(x, y)) return { type: 'none' };
+    if (A.side === B.side) return { type: 'fizzle', msg: 'bracketWall' };
+    return { type: 'fizzle', msg: 'cancelSum' };
+  }
+  // across the fraction bar
+  const P = S.parts[A.p];
+  const sameVar = x.k === 'v' && y.k === 'v' && x.b === y.b;
+  const nums = x.k === 'n' && y.k === 'n';
+  const grp = (x.k === 'g' && (y.k === 'g' || (y.k === 'v' && groupHasBase(x, y.b)) || y.k === 'n'))
+    || (y.k === 'g' && ((x.k === 'v' && groupHasBase(y, x.b)) || x.k === 'n'));
+  if (!sameVar && !nums && !grp) return { type: 'none' };
+  if (P.num.length > 1 || P.den.length > 1) return { type: 'fizzle', msg: 'cancelSum' };
+  if (grp) return { type: 'fizzle', msg: 'cancelGroup' };
+  return cancelCheck(x, y);
+}
+
+function opFactor(S, A, B) {
+  const x = A.f, y = B.f, terms = A.terms;
+  let c, has, reduce;
+  const tapped = new Map([[A.term, x], [B.term, y]]);
+  if (x.k === 'n') {
+    const g = x.v;
+    c = N(g);
+    var pickIn = t => tapped.get(t) || t.f.find(f => f.k === 'n' && f.v === g);
+    has = t => !!pickIn(t);
+  } else {
+    const m = x.e, b = x.b;   // exact matches only: x and y have the same exponent
+    c = V(b, m);
+    pickIn = t => tapped.get(t) || t.f.find(f => f.k === 'v' && f.b === b && f.e === m);
+    has = t => !!pickIn(t);
+  }
+  const set = terms.filter(has);
+  const picked = set.map(t => pickIn(t));
+  const inner = set.map((t, i) => { t.f.splice(t.f.indexOf(picked[i]), 1); return cleanTerm(t); });
+  const ex = mx(set.map((t, i) => (i === 0 ? (t.neg ? '−' : '') : (t.neg ? ' − ' : ' + ')) + fx(c) + '·' + termHTML(inner[i])).join(''));
+  const nt = T([c, Pr(inner)]);
+  const at = terms.indexOf(set[0]);
+  set.forEach(t => terms.splice(terms.indexOf(t), 1));
+  terms.splice(at, 0, nt);
+  const leftOne = inner.some(t => t.f.length === 1 && t.f[0].k === 'n' && t.f[0].v === 1);
+  return { ok: leftOne ? 'factorOne' : 'factor', p: { c: mx(fx(c)), ex, r: mx(termHTML(nt)) }, born: [c.id], origins: { [c.id]: picked.map(f => f.id) }, arcs: true };
+}
+
+function opPair(S, aId, bId) {
+  const A = locate(S, aId), B = locate(S, bId);
+  const r = pairCheck(S, A, B);
+  if (r.type === 'fizzle') return { no: r.msg, p: r.p || {}, ids: [aId, bId] };
+  if (r.type === 'none') return null;
+  if (r.type === 'move') return opMove(S, A, B);
+  if (r.type === 'factor') {
+    const v1 = mx(termHTML(A.term)), v2 = mx(termHTML(B.term));
+    const res = opFactor(S, A, B);
+    if (r.useless) { res.ok = 'factorUseless'; res.p.v1 = v1; res.p.v2 = v2; }
+    return res;
+  }
+  if (r.type === 'addTerms') {
+    const vp = varPart(A.term);
+    const res = termPair(S, A.term.id, B.term.id);
+    if (res.ok === 'likeAdd' && vp.length) {
+      const one = factorsHTML(vp), sq = factorsHTML(vp.map(f => V(f.b, f.e * 2)));
+      res.p.extra = { v: mx(one), two: mx('2' + one), sq: mx(sq) };
+      res.ok = 'likeAddTap';
+    }
+    return res;
+  }
+  const x = A.f, y = B.f;
+  if (r.type === 'merge') {
+    const m = mergeF(x, y);
+    const arr = A.term.f;
+    arr.splice(A.i, 1, m);
+    arr.splice(arr.indexOf(y), 1);
+    const origins = { [m.id]: [x.id, y.id] };
+    if (x.k === 'v') return { ok: 'mergeVar', p: { x: mx(fx(x)), y: mx(fx(y)), r: mx(fx(m)), b: bx(x.b), m: x.e, n: y.e, s: m.e }, born: [m.id], origins };
+    if (x.k === 'n') return { ok: 'mergeNum', p: { x: x.v, y: y.v, r: m.v }, born: [m.id], origins };
+    return { ok: 'mergeGroup', p: { x: mx(fx(x)), y: mx(fx(y)), r: mx(fx(m)) }, born: [m.id], origins };
+  }
+  // cancel
+  const shown = mx(fx(x));
+  if (x.k === 'v') { x.e = 0; y.e = 0; } else { x.v = 1; y.v = 1; }
+  return { ok: 'cancelVar', p: { x: shown }, cancel: true };
+}
+
+function opGather(S, id) {
+  const L = locate(S, id), arr = L.term.f;
+  const same = arr.filter(f => canMerge(L.f, f));
+  if (same.length < 2) return { no: 'nothingGather', p: { x: mx(fx(L.f)) }, ids: [id] };
+  const r = same.reduce((a, b) => mergeF(a, b));
+  const first = arr.indexOf(same[0]);
+  const ex = mx(same.map(fx).join(' · '));
+  L.term.f = arr.filter(f => !same.includes(f));
+  L.term.f.splice(first, 0, r);
+  return { ok: 'gather', p: { ex, r: mx(fx(r)) }, born: [r.id], origins: { [r.id]: same.map(f => f.id) } };
+}
+
+function addTermsIn(terms, list) {
+  const rest = list[0].f.filter(f => f.k !== 'n');
+  const total = list.reduce((s, t) => s + coef(t), 0);
+  const ex = mx(sumHTML(list));
+  const at = terms.indexOf(list[0]);
+  list.forEach(t => terms.splice(terms.indexOf(t), 1));
+  if (total === 0) { if (!terms.length) terms.push(T([N(0)])); return { ex, r: '0', born: [], nt: null }; }
+  const nf = [], origins = {};
+  if (Math.abs(total) !== 1 || !rest.length) {
+    const n = N(Math.abs(total)); nf.push(n);
+    origins[n.id] = list.map(t => (t.f.find(f => f.k === 'n') || t.f[0]).id);
+  }
+  rest.forEach((f, k) => {
+    const cf = cloneF(f); nf.push(cf);
+    origins[cf.id] = list.map(t => t.f.filter(g => g.k !== 'n')[k]).filter(Boolean).map(g => g.id);
+  });
+  const nt = T(nf, total < 0);
+  terms.splice(Math.min(at, terms.length), 0, nt);
+  return { ex, r: mx(sumHTML([nt])), born: nf.map(f => f.id), nt, origins };
+}
+
+/* A sweep is accepted only as ONE valid move: group matching pieces inside one term,
+   or add like terms by sweeping one matching piece in each. Otherwise nothing happens. */
+function opSweep(S, ids) {
+  const locs = ids.map(id => locate(S, id)).filter(L => L && L.kind === 'f' && L.f.k !== 'p');
+  if (locs.length < 2) return null;
+  const all = locs.map(L => L.f.id);
+  const first = locs[0].f;
+  if (!locs.every(L => canMerge(first, L.f)))
+    return { no: 'sweepMixed', p: { list: mx(locs.map(L => fx(L.f)).join(' , ')) }, ids: all };
+  const terms = [...new Set(locs.map(L => L.term))];
+  if (terms.length === 1) {
+    const term = terms[0], same = locs.map(L => L.f);
+    const r = same.reduce((a, b) => mergeF(a, b));
+    const at = Math.min(...same.map(f => term.f.indexOf(f)));
+    const ex = mx(same.map(fx).join(' · '));
+    term.f = term.f.filter(f => !same.includes(f));
+    term.f.splice(at, 0, r);
+    return { ok: 'gather', p: { ex, r: mx(fx(r)) }, born: [r.id], origins: { [r.id]: same.map(f => f.id) } };
+  }
+  if (terms.length !== locs.length || !locs.every(L => L.terms === locs[0].terms))
+    return { no: 'sweepSplit', ids: all };
+  if (!terms.every(t => tidy(t))) return { no: 'untidy', ids: all };
+  if (new Set(terms.map(sig)).size > 1) return { no: 'sweepTerms', ids: all };
+  const container = locs[0].terms;
+  terms.sort((a, b) => container.indexOf(a) - container.indexOf(b));
+  const r = addTermsIn(container, terms);
+  if (!r.nt) return { ok: 'likeZero', p: { ex: r.ex } };
+  return { ok: 'sweepAdd', p: { ex: r.ex, r: r.r }, born: r.born, origins: r.origins };
+}
+
+function termPair(S, aId, bId) {
+  const A = locate(S, aId), B = locate(S, bId);
+  if (A.p !== B.p) return { no: 'diffFrac', ids: [aId, bId] };
+  if (A.terms !== B.terms) return { no: A.side !== B.side ? 'termSide' : 'bracketWall', ids: [aId, bId] };
+  if (!tidy(A.term) || !tidy(B.term)) return { no: 'untidy', ids: [aId, bId] };
+  if (sig(A.term) !== sig(B.term)) return { no: 'notLike', p: { v1: mx(termHTML(A.term)), v2: mx(termHTML(B.term)) }, ids: [aId, bId] };
+  const vp = varPart(A.term);
+  const r = addTermsIn(A.terms, [A.term, B.term].sort((a, b) => A.terms.indexOf(a) - A.terms.indexOf(b)));
+  if (!r.nt) return { ok: 'likeZero', p: { ex: r.ex } };
+  return { ok: 'likeAdd', p: { v: vp.length ? mx(factorsHTML(vp)) : '1', ex: r.ex, r: r.r }, born: r.born, origins: r.origins };
+}
+
+function opSplit(S, tid) {
+  const L = locate(S, tid), t = L.term;
+  const c = coefAbs(t), vp = varPart(t);
+  if (!tidy(t) || !vp.length || c < 2 || c > MAX_SPLIT) return { no: 'splitNo', ids: [tid] };
+  const origins = {};
+  const nts = Array.from({ length: c }, () => T(vp.map(v => { const k = cloneF(v); origins[k.id] = [v.id]; return k; }), t.neg));
+  L.terms.splice(L.t, 1, ...nts);
+  return { ok: 'split', p: { x: mx(termHTML(t)), n: c, v: mx(factorsHTML(vp)), ex: mx(sumHTML(nts)) }, born: Object.keys(origins).map(Number), origins };
+}
+
+function flipPart(P) { [P.num, P.den] = [P.den, P.num]; return [...P.num, ...P.den].flatMap(t => t.f.map(f => f.id)); }
+function opOp(S) {
+  if (S.parts.length < 2) return null;
+  if (S.op === '/') { S.op = ':'; return { ok: 'toDiv' }; }
+  if (S.op === ':') { const born = flipPart(S.parts[1]); S.op = '·'; return { ok: 'flip', born }; }
+  const born = flipPart(S.parts[1]); S.op = '/';
+  return { ok: 'toBar', born };
+}
+// tapping the bar of a single fraction writes it as top : bottom
+function opBar(S) {
+  if (S.parts.length !== 1 || isOne(S.parts[0].den)) return null;
+  const P = S.parts[0];
+  S.parts = [F(P.num), F(P.den)];
+  S.op = ':';
+  return { ok: 'toDiv' };
+}
+// multiplying fractions by hand: move a piece into the same row of the other fraction
+function opMove(S, A, B) {
+  const src = S.parts[A.p][A.side];
+  let moving, whole = false;
+  const label = mx(src.length > 1 || A.depth > 0 ? '(' + sumHTML(src) + ')' : fx(A.f));
+  if (src.length > 1 || A.depth > 0) {
+    moving = [src.length > 1 ? Pr(src.map(cloneT)) : null].filter(Boolean);
+    if (src.length === 1) moving = src[0].f.map(cloneF);   // a single term that contains a bracket: move the whole term
+    const neg = src.length === 1 && src[0].neg;
+    S.parts[A.p][A.side] = [T([N(1)], neg)];
+    whole = true;
+  } else {
+    const t = src[0];
+    t.f.splice(t.f.indexOf(A.f), 1);
+    if (!t.f.length) t.f = [N(1)];
+    moving = [A.f];
+  }
+  const dst = S.parts[B.p][B.side];
+  let target, at;
+  if (dst.length > 1) { target = T([Pr(dst)]); S.parts[B.p][B.side] = [target]; at = target.f.length; }
+  else { target = dst[0]; at = B.depth === 0 ? target.f.indexOf(B.f) + 1 : target.f.length; }
+  target.f.splice(at, 0, ...moving);
+  return { ok: whole ? 'moveWhole' : (A.side === 'num' ? 'moveNum' : 'moveDen'), p: { x: label }, born: moving.map(f => f.id) };
+}
+
+function partnersOf(S, sel) {
+  const out = new Set();
+  if (!sel) return out;
+  const A = locate(S, sel.id);
+  if (!A) return out;
+  if (sel.t === 'f') {
+    eachFactor(S, B => {
+      if (B.f.id === sel.id) return;
+      const r = pairCheck(S, A, B);
+      if (r.type === 'merge' || r.type === 'cancel' || r.type === 'move' || r.type === 'addTerms' || (r.type === 'factor' && !r.useless)) out.add(B.f.id);
+    });
+  } else {
+    eachTerm(S, B => {
+      if (B.term.id === sel.id || B.terms !== A.terms) return;
+      if (tidy(A.term) && tidy(B.term) && sig(A.term) === sig(B.term)) out.add(B.term.id);
+    });
+  }
+  return out;
+}
+
+function hint(S) {
+  if (S.parts.length > 1) {
+    if (S.op === '/') return { k: 'hBar', ids: ['op'] };
+    if (S.op === ':') return { k: 'hDiv', ids: ['op'] };
+    const [P1, P2] = S.parts;
+    for (const [a, b] of [[P1.num, P2.den], [P2.num, P1.den]]) {
+      if (a.length !== 1 || b.length !== 1) continue;
+      for (const x of a[0].f) for (const y of b[0].f)
+        if (cancelCheck(x, y)?.type === 'cancel') return { k: 'hCancel', p: { x: mx(fx(x)), y: mx(fx(y)) }, ids: [x.id, y.id] };
+    }
+    for (const side of SIDES) {
+      const src = P2[side], dst = P1[side];
+      if (isUnit(src)) continue;
+      const x = src[0].f[0], y = dst[0].f[0];
+      return { k: 'hMove', p: { x: mx(src.length > 1 ? '(' + sumHTML(src) + ')' : fx(x)), y: mx(fx(y)) }, ids: [x.id, y.id] };
+    }
+  }
+  const P = S.parts[0];
+  let h = null;
+  eachFactor(S, L => {
+    if (h) return;
+    if (L.f.k === 'g') h = { k: 'hGroup', p: { x: mx(fx(L.f)) }, ids: [L.f.id] };
+  });
+  if (h) return h;
+  if (P.num.length === 1 && P.den.length === 1 && !isOne(P.den)) {
+    const a = P.num[0], b = P.den[0];
+    for (const x of a.f) for (const y of b.f)
+      if (cancelCheck(x, y)?.type === 'cancel') return { k: 'hCancel', p: { x: mx(fx(x)), y: mx(fx(y)) }, ids: [x.id, y.id] };
+    for (const x of a.f) for (const y of b.f) {
+      const cr = cancelCheck(x, y);
+      if (!cr || cr.type !== 'fizzle' || cr.msg === 'cancelCoprime') continue;
+      const ids = x.k === 'v' ? [(x.e > y.e ? x : y).id] : [x, y].filter(f => primeFactors(f.v).length > 1).map(f => f.id);
+      return { k: 'hExplodeCancel', p: { x: mx(fx(x)), y: mx(fx(y)) }, ids };
+    }
+  }
+  if (S.goal === 'factor') {
+    for (const ts of containers(S)) {
+      for (let i = 0; i < ts.length; i++) for (let j = i + 1; j < ts.length; j++) {
+        if (tidy(ts[i]) && tidy(ts[j]) && sig(ts[i]) === sig(ts[j])) continue;
+        for (const a of ts[i].f) for (const b of ts[j].f) {
+          if ((a.k === 'n' && b.k === 'n' && a.v === b.v && a.v > 1) || (a.k === 'v' && b.k === 'v' && a.b === b.b && a.e === b.e))
+            return { k: 'hFactor', p: { x: mx(fx(a)), y: mx(fx(b)) }, ids: [a.id, b.id] };
+        }
+      }
+    }
+  }
+  eachTerm(S, L => {
+    const t = L.term;
+    for (let i = 0; !h && i < t.f.length; i++) for (let j = i + 1; !h && j < t.f.length; j++)
+      if (canMerge(t.f[i], t.f[j])) h = { k: 'hMerge', p: { x: mx(fx(t.f[i])), y: mx(fx(t.f[j])) }, ids: [t.f[i].id, t.f[j].id] };
+  });
+  if (h) return h;
+  const pick = t => t.f.find(f => f.k === 'v') || t.f[0];
+  for (const ts of containers(S))
+    for (let i = 0; i < ts.length; i++) for (let j = i + 1; j < ts.length; j++)
+      if (tidy(ts[i]) && tidy(ts[j]) && sig(ts[i]) === sig(ts[j]))
+        return { k: 'hLike', p: { x: mx(termHTML(ts[i])), y: mx(termHTML(ts[j])) }, ids: [pick(ts[i]).id, pick(ts[j]).id] };
+  if (S.goal === 'factor') {
+    for (const ts of containers(S)) {
+      for (let i = 0; i < ts.length; i++) for (let j = i + 1; j < ts.length; j++) {
+        const na = ts[i].f.find(f => f.k === 'n'), nb = ts[j].f.find(f => f.k === 'n');
+        if (na && nb && na.v !== nb.v && gcd(na.v, nb.v) > 1) return { k: 'hExplodeNums', p: { x: na.v, y: nb.v }, ids: [na.id, nb.id] };
+        for (const va of varPart(ts[i])) for (const vb of varPart(ts[j])) {
+          if (va.b === vb.b && va.e !== vb.e) {
+            const big = va.e > vb.e ? va : vb, small = big === va ? vb : va;
+            return { k: 'hExplodeVar', p: { x: mx(fx(big)), y: mx(fx(small)), b: bx(big.b) }, ids: [big.id] };
+          }
+        }
+      }
+    }
+  }
+  if (S.goal !== 'factor' && !S.allowB) {
+    eachFactor(S, L => { if (!h && L.f.k === 'p') h = { k: 'hOpen', p: { x: mx(termHTML(L.term)) }, ids: [L.f.id] }; });
+    if (h) return h;
+  }
+  return { k: 'hDone', ids: [] };
+}
+
+/* ---- levels ---- */
+const LEVELS = [
+  { s: () => ({ parts: [F([T([V('a'), V('a'), V('a')])])] }),
+    en: 'Three <i>a</i>’s are lying around. Tap one <i>a</i>, then tap another <i>a</i> to stick them together. Keep going until the mess is gone.',
+    nl: 'Er slingeren drie <i>a</i>’s rond. Tik op een <i>a</i> en dan op een andere <i>a</i> om ze samen te voegen. Ga door tot alles is opgeruimd.' },
+  { s: () => ({ parts: [F([T([V('a', 2), V('a', 3)])])] }),
+    en: '<i>a</i><sup>2</sup> is just <i>a</i> · <i>a</i>. Tap <i>a</i><sup>2</sup> twice to explode it and see for yourself. Then clean up.',
+    nl: '<i>a</i><sup>2</sup> is gewoon <i>a</i> · <i>a</i>. Tik twee keer op <i>a</i><sup>2</sup> om hem te laten ontploffen. Ruim daarna alles op.' },
+  { s: () => ({ parts: [F([T([G([V('a', 2)], 3)])])] }),
+    en: 'A power of a power. Explode the bracket and see what happens to what’s inside. Tip: swipe across a row of matching tiles to group them in one go.',
+    nl: 'Een macht van een macht. Laat het haakje ontploffen en kijk wat er met de inhoud gebeurt. Tip: veeg over een rij passende tegels om ze in één keer te groeperen.' },
+  { s: () => ({ parts: [F([T([N(2), V('a'), N(3), V('a', 2)])])] }),
+    en: 'Numbers combine too: tap 2, then tap 3.',
+    nl: 'Getallen kun je ook samenvoegen: tik op 2 en dan op 3.' },
+  { s: () => ({ parts: [F([T([V('a')]), T([V('a')]), T([N(3), V('a')])])] }),
+    en: 'Now there are + signs. Tap an <i>a</i>, then another <i>a</i>. Watch what happens: is it the same as before?',
+    nl: 'Nu staan er plustekens. Tik op een <i>a</i> en dan op een andere <i>a</i>. Let op wat er gebeurt: is het hetzelfde als eerst?' },
+  { s: () => ({ parts: [F([T([N(4), V('a', 2)]), T([N(2), V('a', 3)]), T([V('a', 2)])])] }),
+    en: 'Not every pair of terms can be added. Find out which ones belong together.',
+    nl: 'Niet alle termen kun je optellen. Zoek uit welke bij elkaar horen.' },
+  { s: () => ({ parts: [F([T([G([N(3), V('a')], 2)])])] }),
+    en: 'Careful: everything inside the bracket gets squared, the 3 too.',
+    nl: 'Let op: alles in het haakje wordt gekwadrateerd, ook de 3.' },
+  { s: () => ({ parts: [F([T([V('a', 7)])], [T([V('a', 3)])])] }),
+    en: 'A fraction! Exactly the same piece on top and below cancels out. <i>a</i><sup>7</sup> and <i>a</i><sup>3</sup> aren’t the same: explode <i>a</i><sup>7</sup>, regroup three <i>a</i>’s into <i>a</i><sup>3</sup>, and cancel that.',
+    nl: 'Een breuk! Precies hetzelfde stuk boven en onder streep je tegen elkaar weg. <i>a</i><sup>7</sup> en <i>a</i><sup>3</sup> zijn niet hetzelfde: laat <i>a</i><sup>7</sup> ontploffen, maak van drie <i>a</i>’s weer <i>a</i><sup>3</sup>, en streep die weg.' },
+  { s: () => ({ parts: [F([T([N(12), V('a', 5)])], [T([N(4), V('a', 2)])])] }),
+    en: 'Numbers cancel too, but again only when they are exactly equal. Explode 12 and 4 to find the pieces they share.',
+    nl: 'Getallen kun je ook wegstrepen, maar ook weer alleen als ze precies gelijk zijn. Laat 12 en 4 ontploffen om te vinden wat ze delen.' },
+  { s: () => ({ parts: [F([T([N(6), V('a', 2), V('b'), N(2), V('a'), V('b', 3)])])] }),
+    en: 'Two letters now. Only matching letters combine.',
+    nl: 'Nu twee letters. Alleen dezelfde letters kun je samenvoegen.' },
+  { s: () => ({ parts: [F([T([G([N(2), V('a'), V('b', 2)], 3)])], [T([N(4), V('a', 2), V('b')])])] }),
+    en: 'Explode, unpack, combine, cancel. You know all the moves now.',
+    nl: 'Ontploffen, uitpakken, samenvoegen, wegstrepen. Je kent nu alle zetten.' },
+  { book: true, s: () => ({ parts: [F([T([N(3), G([V('a', 4)], 3)]), T([N(5), G([V('a', 2)], 6)], true)])] }),
+    en: 'Two terms with brackets. Clean up each term first.',
+    nl: 'Twee termen met haakjes. Ruim eerst elke term apart op.' },
+  { book: true, s: () => ({ parts: [F([T([N(2), V('a'), N(5), G([V('a', 3)], 3)], true)])] }),
+    en: 'One long term. The minus sign stays in front of it the whole time.',
+    nl: 'Eén lange term. Het minteken blijft de hele tijd vooraan staan.' },
+  { book: true, s: () => ({ parts: [F([T([N(8), V('x')])], [T([N(3), V('y')])]), F([T([N(3), V('x')])], [T([V('y')])])], op: ':' }),
+    en: 'Dividing fractions. Tap the : to turn it into ·, then multiply the two fractions by hand: tap a piece in one fraction, then a piece in the same row of the other.',
+    nl: 'Breuken delen. Tik op de : om er een · van te maken, en vermenigvuldig de breuken dan met de hand: tik op een stuk in de ene breuk en dan op een stuk in dezelfde rij van de andere.' },
+  { book: true, s: () => ({ parts: [F([T([N(16), G([V('a', 3)], 4)]), T([G([N(3), V('a', 6)], 2)])], [T([N(5), V('a', 3)])])] }),
+    en: 'The big one. Watch out: you may only cancel once the top is one single term.',
+    nl: 'De grote. Let op: wegstrepen mag pas als de teller één term is.' },
+  { s: () => ({ parts: [F([T([N(5), Pr([T([V('a')]), T([N(2)])])]), T([N(3), V('a')])])] }),
+    en: 'Brackets with a sum inside. Tap the brackets twice to open them up.',
+    nl: 'Haakjes met een som erin. Tik twee keer op de haakjes om ze weg te werken.' },
+  { goal: 'factor', s: () => ({ parts: [F([T([N(2), V('x')]), T([N(2), V('y')])])] }),
+    en: 'New goal: put what the terms share <b>outside the brackets</b>. Both terms contain a 2. Tap one 2, then the other.',
+    nl: 'Nieuw doel: breng wat de termen gemeen hebben <b>buiten haakjes</b>. Beide termen bevatten een 2. Tik op de ene 2 en dan op de andere.' },
+  { goal: 'factor', s: () => ({ parts: [F([T([N(6), V('a')]), T([N(9), V('b')])])] }),
+    en: '6 and 9 aren’t the same number, so neither can go in front as it is. Explode both to find the factor they share.',
+    nl: '6 en 9 zijn niet hetzelfde getal, dus geen van beide kan zo voor de haakjes. Laat ze allebei ontploffen om te vinden welke factor ze delen.' },
+  { goal: 'factor', s: () => ({ parts: [F([T([N(3), V('x', 2)]), T([V('x')])])] }),
+    en: 'Put the <i>x</i> outside the brackets. Only exact matches can go out, so explode <i>x</i><sup>2</sup> first. Watch what stays behind.',
+    nl: 'Breng de <i>x</i> buiten haakjes. Alleen precies gelijke stukken mogen eruit, dus laat <i>x</i><sup>2</sup> eerst ontploffen. Let op wat er overblijft.' },
+  { goal: 'factor', s: () => ({ parts: [F([T([N(4), V('a', 2), V('b')]), T([N(6), V('a'), V('b', 2)])])] }),
+    en: 'These terms share three things. Take them out one at a time. You can keep going inside the brackets.',
+    nl: 'Deze termen hebben drie dingen gemeen. Haal ze er één voor één uit. Je kunt binnen de haakjes gewoon verder.' },
+];
+function buildLevel(i) { const S = LEVELS[i].s(); S.op = S.op || null; S.goal = LEVELS[i].goal || 'simplify'; return S; }
+/* ===== END CORE ===== */
+
+/* ===== PRACTICE: random problem generator ===== */
+const R = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const VARS = ['a', 'b', 'x', 'y'];
+const otherVar = v => pick(VARS.filter(w => w !== v));
+const coprime = (lo, hi, not) => { let u; do u = R(lo, hi); while (not && gcd(u, not) !== 1); return u; };
+const coin = () => Math.random() < .5;
+
+// a monomial term from {coef, vars:{a:2,...}}; untidy = spread it over several tiles
+function mono(c, vars, neg, untidy) {
+  const fs = [];
+  if (untidy && c > 3 && primeFactors(c).length > 1) {
+    const pf = primeFactors(c); const k = R(1, pf.length - 1);
+    fs.push(N(pf.slice(0, k).reduce((a, b) => a * b, 1)), N(pf.slice(k).reduce((a, b) => a * b, 1)));
+  } else if (c !== 1 || !Object.keys(vars).length) fs.push(N(c));
+  for (const [b, e] of Object.entries(vars)) {
+    if (untidy && e > 1 && coin()) { const k = R(1, e - 1); fs.push(V(b, k), V(b, e - k)); }
+    else fs.push(V(b, e));
+  }
+  if (untidy) fs.sort(() => Math.random() - .5);
+  return T(fs, neg);
+}
+
+const GEN = {
+  powers(d) {
+    const v = pick(VARS);
+    const kinds = d === 1 ? ['prod', 'pp'] : d === 2 ? ['prod', 'pp', 'prodc', 'ppc'] : ['prod', 'prodc', 'ppc', 'mix'];
+    const kind = pick(kinds);
+    if (kind === 'prod') {
+      const fs = Array.from({ length: d === 1 ? 2 : 3 }, () => V(v, R(1, d === 1 ? 4 : 5)));
+      if (d === 3) { const w = otherVar(v); fs.splice(1, 0, V(w, R(1, 3))); fs.push(V(w, R(1, 3))); }
+      return { parts: [F([T(fs)])] };
+    }
+    if (kind === 'pp') return { parts: [F([T([G([V(v, R(2, 4))], R(2, 3))])])] };
+    if (kind === 'prodc') {
+      const fs = [N(R(2, 6)), V(v, R(1, 4)), N(R(2, 5)), V(v, R(1, 3))];
+      if (d === 3) fs.push(G([V(v, 2)], R(2, 3)));
+      return { parts: [F([T(fs, d === 3 && coin())])] };
+    }
+    if (kind === 'ppc') {
+      const inner = [N(R(2, 3)), V(v, R(1, 3))];
+      if (d === 3) inner.push(V(otherVar(v), R(1, 2)));
+      const fs = [G(inner, R(2, 3))];
+      if (coin()) fs.unshift(N(R(2, 4)));
+      return { parts: [F([T(fs)])] };
+    }
+    // mix: −2a · 5(a³)³ style
+    return { parts: [F([T([N(R(2, 5)), V(v, R(1, 2)), N(R(2, 5)), G([V(v, R(2, 3))], R(2, 3))], coin())])] };
+  },
+
+  like(d) {
+    const v = pick(VARS), w = otherVar(v);
+    const sigPool = d === 1 ? [{ [v]: 1 }, { [v]: 2 }] : d === 2 ? [{ [v]: 1 }, { [v]: 2 }, { [w]: 1 }] : [{ [v]: 1, [w]: 1 }, { [v]: 2, [w]: 1 }, { [v]: 2 }];
+    const n = d === 1 ? 3 : 4;
+    const main = pick(sigPool);
+    const sigs = [main, main];
+    while (sigs.length < n) sigs.push(pick(sigPool));
+    sigs.sort(() => Math.random() - .5);
+    const terms = sigs.map((s, i) => mono(R(1, d === 1 ? 6 : 9), s, i > 0 && d > 1 && Math.random() < .35, d === 3 && Math.random() < .5));
+    return { parts: [F(terms)] };
+  },
+
+  frac(d) {
+    const v = pick(VARS), w = otherVar(v);
+    if (d === 3 && coin()) {   // dividing fractions
+      const p = R(2, 9), q = R(2, 5), r = R(2, 5), s = R(1, 3);
+      return { parts: [F([mono(p, { [v]: R(1, 2) })], [mono(q, { [w]: R(1, 2) })]), F([mono(r, { [v]: 1 })], [mono(s, { [w]: 1 })])], op: ':' };
+    }
+    const g = d === 1 ? 1 : R(2, 5), p = R(1, 6), q = coprime(1, 5, p);
+    const m = R(2, 7), k = R(1, 5);
+    const numVars = { [v]: m }, denVars = { [v]: k === m ? k - 1 || 1 : k };
+    if (d >= 2 && coin()) { numVars[w] = R(1, 4); denVars[w] = R(1, 3); }
+    if (d === 3) {
+      const e = R(2, 3), base = R(1, 2);
+      const num = T([G([N(2), V(v, base)], e)]);
+      return { parts: [F([num], [mono(2 * R(1, 3), { [v]: R(1, base * e) })])] };
+    }
+    return { parts: [F([mono(p * g, numVars)], [mono(q * g, denVars)])] };
+  },
+
+  open(d) {
+    const v = pick(VARS), c = R(2, 6), dd = R(1, 7);
+    const inner = () => Pr([T([V(v)]), T([N(R(1, 7))], coin())]);
+    if (d === 1) return { parts: [F([T([N(c), Pr([T([V(v)]), T([N(dd)], coin())])])])] };
+    if (d === 2) return { parts: [F([T([N(c), inner()]), mono(R(1, 6), { [v]: 1 }, coin())])] };
+    return { parts: [F([T([N(c), inner()]), T([N(R(2, 5)), inner()], coin())])] };
+  },
+
+  factor(d) {
+    const v = pick(VARS), w = otherVar(v);
+    let g, cv, inner;
+    if (d === 1) { g = R(2, 7); cv = {}; inner = [mono(R(1, 3) === 1 ? 1 : 1, { [v]: 1 }), mono(1, { [w]: 1 }, coin())]; }
+    else if (d === 2) {
+      if (coin()) { g = R(2, 5); const u = R(1, 4), s = coprime(2, 5, u); cv = {}; inner = [mono(u, { [v]: 1 }), mono(s, { [w]: 1 }, coin())]; }
+      else { g = 1; cv = { [v]: 1 }; const u = R(2, 5); inner = [mono(u, { [v]: 1 }), mono(R(1, 7), {}, coin())]; }
+    } else {
+      g = R(2, 4); cv = { [v]: 1 }; const u = R(1, 4), s = coprime(2, 5, u);
+      inner = [mono(u, { [v]: 1 }), mono(s, { [w]: R(1, 2) }, coin())];
+    }
+    const terms = inner.map(t => {
+      const vars = { ...cv };
+      varPart(t).forEach(f => { vars[f.b] = (vars[f.b] || 0) + f.e; });
+      return mono(g * coefAbs(t), vars, t.neg);
+    });
+    return { parts: [F(terms)], goal: 'factor' };
+  },
+
+  mixed(d) {
+    const v = pick(VARS);
+    const E = pick([6, 8, 12]);
+    const pairs = [[2, E / 2], [E / 2, 2], ...(E % 3 === 0 ? [[3, E / 3]] : []), ...(E % 4 === 0 ? [[4, E / 4]] : [])];
+    const [m, n] = pick(pairs); let [k, l] = pick(pairs);
+    const c1 = R(2, 9), c2 = R(1, 7);
+    const t1 = T([N(c1), G([V(v, m)], n)]);
+    const t2 = d === 1 ? T([N(c2), G([V(v, k)], l)], coin()) : T([G([N(R(2, 3)), V(v, k)], l)]);
+    if (d < 3) return { parts: [F([t1, t2])] };
+    const s = c1 + Math.pow(t2.f[0].f[0].v, l);
+    const divs = [2, 3, 5, 7].filter(p => s % p === 0);
+    return { parts: [F([t1, t2], [mono(divs.length ? pick(divs) : R(2, 5), { [v]: R(1, 4) })])] };
+  },
+};
+
+function autoSolve(S) {
+  let k = 0;
+  while (k++ < 80) {
+    const h = hint(S); let r;
+    if (h.k === 'hDone') break;
+    if (h.k === 'hDiv' || h.k === 'hBar') r = opOp(S);
+    else if (h.k === 'hGroup' || h.k === 'hOpen' || h.k === 'hExplodeVar') r = opExplode(S, h.ids[0]);
+    else if (h.k === 'hExplodeCancel') { for (const id of h.ids) { r = opExplode(S, id); normalize(S); if (r && r.no) break; } }
+    else if (h.k === 'hExplodeNums') { r = opExplode(S, h.ids[0]); normalize(S); if (r && !r.no) r = opExplode(S, h.ids[1]); }
+    else r = opPair(S, h.ids[0], h.ids[1]);
+    if (!r || r.no) return null;
+    normalize(S);
+  }
+  return isClean(S) ? k - 1 : null;
+}
+
+function makeProblem(topics, d) {
+  for (let tries = 0; tries < 60; tries++) {
+    const topic = pick(topics);
+    const S = GEN[topic](d);
+    S.op = S.op || null; S.goal = S.goal || 'simplify';
+    normalize(S);
+    if (isClean(S)) continue;
+    const test = JSON.parse(JSON.stringify(S));
+    const moves = autoSolve(test);
+    if (moves == null || moves > 60) continue;
+    if (/^<span class="mn">0<\/span>$/.test(stateHTML(test))) continue;
+    S.topic = topic;
+    return S;
+  }
+  return null;
+}
+/* ===== END PRACTICE ===== */
+
+</script>
+<script>
+const I18N = {
+  en: {
+    practice: 'Practice', practiceTitle: 'Practice', newProblem: 'New problem', topics: 'Topics', difficulty: 'Difficulty', start: 'Start practising',
+    solved: '<b>{n}</b> solved', streak: ' · streak {n}', nextProblem: 'Next problem', changeTopics: 'Change topics', pickOne: 'Pick at least one topic.',
+    d1: 'Easy', d2: 'Medium', d3: 'Hard', practiceIntro: 'Choose what to practise. Each problem is new, made up on the spot.',
+    tp_powers: 'Powers', tp_like: 'Like terms', tp_frac: 'Fractions', tp_open: 'Opening brackets', tp_factor: 'Outside brackets', tp_mixed: 'Textbook mix',
+    ti_powers: 'Clean up the powers.', ti_like: 'Add up the like terms.', ti_frac: 'Simplify the fraction.', ti_open: 'Open the brackets and clean up.',
+    ti_factor: 'Put as much as you can outside the brackets.', ti_mixed: 'Clean it all up.',
+    skipped: 'Skipped. Here’s a new one.', winPractice: '{n} solved this session.',
+    levels: 'Levels', restart: 'Restart', undo: 'Undo', hint: 'Hint', explode: 'Explode', gather: 'Gather all', split: 'Split into +',
+    level: 'Level {n}', book: 'Textbook', moves: '<b>{n}</b> moves', best: ' · best {n}', written: 'As written',
+    win: 'Clean!', winSub: 'You simplified it to', winMoves: '{n} moves.', winBest: ' Your best is {n}.', next: 'Next level', replay: 'Play again',
+    allDone: 'That was the last level. Go back to any level to beat your best.', chooseLevel: 'Choose a level',
+    picked: 'Picked up. Tap it again to explode it.', pickedP: 'Picked up. Tap it again to explode it, or tap a glowing piece.',
+    pickedTerm: 'Whole term picked up. Press Split to write it as a sum.', pickedTermP: 'Whole term picked up. Tap a glowing term to add them together.',
+    atom: '{x} can’t be split any further.', prime: '{n} is a prime number, so it can’t be split into smaller factors.',
+    tooBig: 'That would make too many pieces. Try combining or cancelling first.',
+    explodeVar: '{x} means {n} {b}’s multiplied: {ex}.', explodeNum: '{n} = {ex}. Every whole number is built from prime factors.',
+    explodeGroup: 'The exponent {e} means the bracket {e} times, multiplied: {x} = {ex}.',
+    unwrap: 'Inside {x} there is only multiplication, so the brackets can go: {ex}.',
+    mergeVar: '{x} · {y} = {r}. Count the {b}’s: {m} + {n} = {s}.', mergeNum: '{x} · {y} = {r}.', mergeGroup: '{x} · {y} = {r}: the same bracket again.',
+    gather: 'All together: {ex} = {r}.', nothingGather: 'There’s nothing else like {x} in this term.',
+    diffTerms: 'These two are in different terms, separated by + or −. You can only combine factors inside the same term.',
+    diffFrac: 'These are in two different fractions. Tap the sign between them until it’s a ·. Then you can multiply them by hand.',
+    toDiv: 'A fraction bar means divide. Written with : it’s exactly the same thing.', toBar: 'Back to a fraction bar. Multiplying by the upside-down fraction is the same as dividing by the original.',
+    moveNum: '{x} moves to the top of the other fraction: tops multiply with tops.', moveDen: '{x} moves to the bottom of the other fraction: bottoms multiply with bottoms.', moveWhole: 'The whole {x} moves across, as one piece.',
+    crossSide: 'When you multiply fractions, top goes with top and bottom goes with bottom.', hBar: 'Tap the big fraction bar to write it with :.', hMove: 'Tap {x}, then tap {y} to multiply it into the other fraction.',
+    cancelSum: 'You may only cancel something that is a factor of the <b>whole</b> top and the whole bottom. Here there’s a sum, so combine the terms first.',
+    cancelGroup: 'Unpack the brackets first, then cancel.',
+    cancelCoprime: '{a} and {b} have no common factor, so there’s nothing to cancel.',
+    cancelVar: '{x} on top and {x} below cancel out, because {x} : {x} = 1.',
+    cancelUnequal: '{x} and {y} aren’t the same, so they can’t cancel each other. Explode {big} and regroup it so it contains {small}. Then {small} can cancel against {small}.',
+    cancelUnequalNum: '{a} and {b} aren’t the same number, so they can’t cancel each other. Explode them to find the factor they share, then cancel that.',
+    hExplodeCancel: '{x} and {y} can only cancel when they’re exactly the same. Explode the highlighted piece (tap it twice) to see what they share.',
+    cancelNum: 'Divide top and bottom by {g}: {a} becomes {a2} and {b} becomes {b2}.',
+    flip: 'Dividing by a fraction is the same as multiplying by it upside down. Now multiply by hand: tap a piece in one fraction, then a piece in the same row of the other.',
+    join: 'Top times top, bottom times bottom: now it’s one fraction.', joinSum: 'Clean up the sums first.',
+    split: '{x} means {n} copies of {v} added together: {ex}.',
+    splitNo: 'Only a tidy term with a whole number from 2 to 12 in front can be split into a sum.',
+    likeAdd: 'Like terms: both are made of {v}. Add them: {ex} = {r}.', likeAddTap: '{ex} = {r}. Adding is not multiplying: {v} + {v} = {two}, but {v} · {v} = {sq}.',
+    factor: '{ex} = {r}. The {c} was in each of these terms, so it goes in front of the brackets.',
+    factorOne: '{ex} = {r}. The {c} was in each of these terms, so it goes in front of the brackets. Where {c} was all there was, a 1 stays behind.',
+    distribute: '{x} = {ex}. What’s in front of the brackets multiplies every term inside.',
+    factorUseless: '{ex} = {r}. That’s allowed, but {v1} and {v2} aren’t like terms, so this doesn’t make it simpler. Open the brackets again (tap them twice) or press Undo.',
+    unwrapSum: 'Nothing multiplies these brackets, so they can just go: {ex}.',
+    noCommon: '{a} and {b} have no common factor bigger than 1.',
+    explodeFirstVar: '{x} and {y} aren’t exactly the same. Explode {big} first, so you can see the {small} they share.',
+    hExplodeVar: 'Explode {x} (tap it twice) to find the {b} it shares with {y}.',
+    explodeFirst: '{a} and {b} aren’t the same number, so neither can go in front of the brackets. Explode them to see which factor they share.',
+    hExplodeNums: 'Explode {x} and {y} (tap each twice) to find the factor they share.',
+    bracketWall: 'One piece is inside the brackets and the other is outside. Open the brackets first by tapping them twice.',
+    hOpen: 'Tap the brackets in {x} twice to open them.', hFactor: 'Tap {x}, then {y}: they share a factor you can put outside the brackets.',
+    winSubF: 'You factored it as', factorBadge: 'Brackets',
+    sweepAdd: 'Like terms: {ex} = {r}.', sweepMixed: 'Not everything you swept fits together: {list}. A sweep only works when every piece in it matches.', sweepSplit: 'That sweep crosses a + or − sign and also takes several pieces from one term. Sweep inside one term, or over one matching piece in each term.', sweepTerms: 'These aren’t like terms, so they can’t be added together.', likeZero: '{ex} = 0. They cancel each other out.',
+    notLike: '{v1} and {v2} are not like terms, so they can’t become one term. That’s fine: they just stay apart.',
+    untidy: 'Tidy up each term first, so it looks like a number times letters. Then you can see whether they’re alike.',
+    termSide: 'One term is on top and the other is below. Those divide, they don’t add.',
+    hDiv: 'Tap the : sign to turn it into ·.', hJoin: 'Tap the · sign to join the fractions into one.',
+    hGroup: 'Tap {x} twice to explode it.', hMerge: 'Tap {x}, then tap {y} to combine them.',
+    hLike: '{x} and {y} are like terms. Tap one, then the other, to add them.',
+    hCancel: 'Tap {x} on top, then {y} below to cancel.', hDone: 'Nothing left to clean up!'
+  },
+  nl: {
+    practice: 'Oefenen', practiceTitle: 'Oefenen', newProblem: 'Nieuwe som', topics: 'Onderwerpen', difficulty: 'Niveau', start: 'Begin met oefenen',
+    solved: '<b>{n}</b> opgelost', streak: ' · reeks {n}', nextProblem: 'Volgende som', changeTopics: 'Andere onderwerpen', pickOne: 'Kies minstens één onderwerp.',
+    d1: 'Makkelijk', d2: 'Gemiddeld', d3: 'Moeilijk', practiceIntro: 'Kies wat je wilt oefenen. Elke som is nieuw, ter plekke bedacht.',
+    tp_powers: 'Machten', tp_like: 'Gelijksoortige termen', tp_frac: 'Breuken', tp_open: 'Haakjes wegwerken', tp_factor: 'Buiten haakjes', tp_mixed: 'Gemengd, zoals in het boek',
+    ti_powers: 'Ruim de machten op.', ti_like: 'Neem de gelijksoortige termen samen.', ti_frac: 'Vereenvoudig de breuk.', ti_open: 'Werk de haakjes weg en ruim op.',
+    ti_factor: 'Breng zoveel mogelijk buiten haakjes.', ti_mixed: 'Ruim alles op.',
+    skipped: 'Overgeslagen. Hier is een nieuwe.', winPractice: '{n} opgelost deze sessie.',
+    levels: 'Levels', restart: 'Opnieuw', undo: 'Terug', hint: 'Hint', explode: 'Ontplof', gather: 'Alles samen', split: 'Splits in +',
+    level: 'Level {n}', book: 'Uit het boek', moves: '<b>{n}</b> zetten', best: ' · record {n}', written: 'Zo schrijf je het',
+    win: 'Opgeruimd!', winSub: 'Je hebt het vereenvoudigd tot', winMoves: '{n} zetten.', winBest: ' Je record is {n}.', next: 'Volgend level', replay: 'Nog een keer',
+    allDone: 'Dat was het laatste level. Ga terug naar een level om je record te verbeteren.', chooseLevel: 'Kies een level',
+    picked: 'Opgepakt. Tik nog eens om hem te laten ontploffen.', pickedP: 'Opgepakt. Tik nog eens om te ontploffen, of tik op een stuk dat oplicht.',
+    pickedTerm: 'Hele term opgepakt. Druk op Splits om hem als som te schrijven.', pickedTermP: 'Hele term opgepakt. Tik op een term die oplicht om ze op te tellen.',
+    atom: '{x} kun je niet verder opsplitsen.', prime: '{n} is een priemgetal, dus je kunt het niet in kleinere factoren splitsen.',
+    tooBig: 'Dan worden het te veel stukjes. Probeer eerst samen te voegen of weg te strepen.',
+    explodeVar: '{x} betekent {n} keer {b} vermenigvuldigd: {ex}.', explodeNum: '{n} = {ex}. Elk geheel getal is opgebouwd uit priemfactoren.',
+    explodeGroup: 'De exponent {e} betekent: het haakje {e} keer, vermenigvuldigd: {x} = {ex}.',
+    unwrap: 'In {x} staat alleen vermenigvuldigen, dus de haakjes mogen weg: {ex}.',
+    mergeVar: '{x} · {y} = {r}. Tel de {b}’s: {m} + {n} = {s}.', mergeNum: '{x} · {y} = {r}.', mergeGroup: '{x} · {y} = {r}: hetzelfde haakje nog een keer.',
+    gather: 'Alles samen: {ex} = {r}.', nothingGather: 'Er staat niets anders zoals {x} in deze term.',
+    diffTerms: 'Deze twee staan in verschillende termen, gescheiden door + of −. Je kunt alleen factoren in dezelfde term samenvoegen.',
+    diffFrac: 'Deze staan in twee verschillende breuken. Tik op het teken ertussen tot het een · is. Dan kun je ze met de hand vermenigvuldigen.',
+    toDiv: 'Een breukstreep betekent delen. Met : erbij is het precies hetzelfde.', toBar: 'Terug naar een breukstreep. Vermenigvuldigen met de omgekeerde breuk is hetzelfde als delen door de oorspronkelijke.',
+    moveNum: '{x} gaat naar de teller van de andere breuk: teller keer teller.', moveDen: '{x} gaat naar de noemer van de andere breuk: noemer keer noemer.', moveWhole: 'De hele {x} gaat mee naar de andere breuk, als één stuk.',
+    crossSide: 'Bij breuken vermenigvuldigen gaat teller met teller en noemer met noemer.', hBar: 'Tik op de grote breukstreep om het met : te schrijven.', hMove: 'Tik op {x} en dan op {y} om hem in de andere breuk te vermenigvuldigen.',
+    cancelSum: 'Je mag alleen wegstrepen wat een factor is van de <b>hele</b> teller en de hele noemer. Hier staat een som, dus neem eerst de termen samen.',
+    cancelGroup: 'Werk eerst de haakjes uit, en streep daarna weg.',
+    cancelCoprime: '{a} en {b} hebben geen gemeenschappelijke factor, dus er valt niets weg te strepen.',
+    cancelVar: '{x} boven en {x} onder strepen tegen elkaar weg, want {x} : {x} = 1.',
+    cancelUnequal: '{x} en {y} zijn niet hetzelfde, dus ze kunnen niet tegen elkaar wegstrepen. Laat {big} ontploffen en groepeer zo dat er {small} in zit. Dan kan {small} tegen {small} wegstrepen.',
+    cancelUnequalNum: '{a} en {b} zijn niet hetzelfde getal, dus ze kunnen niet tegen elkaar wegstrepen. Laat ze ontploffen om de factor te vinden die ze delen, en streep die weg.',
+    hExplodeCancel: '{x} en {y} kunnen alleen wegstrepen als ze precies hetzelfde zijn. Laat het gemarkeerde stuk ontploffen (twee keer tikken) om te zien wat ze delen.',
+    cancelNum: 'Deel boven en onder door {g}: {a} wordt {a2} en {b} wordt {b2}.',
+    flip: 'Delen door een breuk is hetzelfde als vermenigvuldigen met het omgekeerde. Vermenigvuldig nu met de hand: tik op een stuk in de ene breuk en dan op een stuk in dezelfde rij van de andere.',
+    join: 'Teller keer teller, noemer keer noemer: nu is het één breuk.', joinSum: 'Ruim eerst de sommen op.',
+    split: '{x} betekent {n} keer {v} opgeteld: {ex}.',
+    splitNo: 'Alleen een opgeruimde term met een heel getal van 2 tot en met 12 ervoor kun je als som schrijven.',
+    likeAdd: 'Gelijksoortige termen: allebei {v}. Tel ze op: {ex} = {r}.', likeAddTap: '{ex} = {r}. Optellen is niet vermenigvuldigen: {v} + {v} = {two}, maar {v} · {v} = {sq}.',
+    factor: '{ex} = {r}. De {c} zat in elk van deze termen, dus die komt voor de haakjes.',
+    factorOne: '{ex} = {r}. De {c} zat in elk van deze termen, dus die komt voor de haakjes. Waar alleen {c} stond, blijft een 1 over.',
+    distribute: '{x} = {ex}. Wat voor de haakjes staat, vermenigvuldig je met elke term erin.',
+    factorUseless: '{ex} = {r}. Dat mag, maar {v1} en {v2} zijn geen gelijksoortige termen, dus het wordt er niet eenvoudiger van. Werk de haakjes weer weg (twee keer tikken) of druk op Terug.',
+    unwrapSum: 'Er staat niets voor deze haakjes, dus ze mogen gewoon weg: {ex}.',
+    noCommon: '{a} en {b} hebben geen gemeenschappelijke factor groter dan 1.',
+    explodeFirstVar: '{x} en {y} zijn niet precies hetzelfde. Laat {big} eerst ontploffen, dan zie je de {small} die ze delen.',
+    hExplodeVar: 'Laat {x} ontploffen (twee keer tikken) om de {b} te vinden die hij deelt met {y}.',
+    explodeFirst: '{a} en {b} zijn niet hetzelfde getal, dus geen van beide kan voor de haakjes. Laat ze ontploffen om te zien welke factor ze delen.',
+    hExplodeNums: 'Laat {x} en {y} ontploffen (tik op elk twee keer) om de factor te vinden die ze delen.',
+    bracketWall: 'Het ene stuk staat binnen de haakjes en het andere erbuiten. Werk eerst de haakjes weg door er twee keer op te tikken.',
+    hOpen: 'Tik twee keer op de haakjes in {x} om ze weg te werken.', hFactor: 'Tik op {x} en dan op {y}: ze delen een factor die je buiten haakjes kunt brengen.',
+    winSubF: 'Je hebt het buiten haakjes gebracht:', factorBadge: 'Buiten haakjes',
+    sweepAdd: 'Gelijksoortige termen: {ex} = {r}.', sweepMixed: 'Niet alles waar je overheen veegde past bij elkaar: {list}. Vegen werkt alleen als alle stukken passen.', sweepSplit: 'Die veeg gaat over een + of − en pakt ook meerdere stukken uit één term. Veeg binnen één term, of over één passend stuk per term.', sweepTerms: 'Dit zijn geen gelijksoortige termen, dus je kunt ze niet optellen.', likeZero: '{ex} = 0. Ze heffen elkaar op.',
+    notLike: '{v1} en {v2} zijn geen gelijksoortige termen, dus daar kun je geen één term van maken. Geen probleem: ze blijven gewoon los staan.',
+    untidy: 'Ruim eerst elke term op, zodat er een getal keer letters staat. Dan zie je of ze gelijksoortig zijn.',
+    termSide: 'De ene term staat boven, de andere onder. Die deel je, die tel je niet op.',
+    hDiv: 'Tik op het deelteken : om er een · van te maken.', hJoin: 'Tik op het keerteken · om er één breuk van te maken.',
+    hGroup: 'Tik twee keer op {x} om hem te laten ontploffen.', hMerge: 'Tik op {x} en dan op {y} om ze samen te voegen.',
+    hLike: '{x} en {y} zijn gelijksoortige termen. Tik op de ene en dan op de andere om ze op te tellen.',
+    hCancel: 'Tik op {x} boven en dan op {y} onder om weg te strepen.', hDone: 'Er valt niets meer op te ruimen!'
+  }
+};
+const VARCOL = { a: '--va', b: '--vb', x: '--vx', y: '--vy' };
+const store = { get(k, d) { try { const v = localStorage.getItem('alg-cleanup:' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem('alg-cleanup:' + k, JSON.stringify(v)); } catch {} } };
+
+let lang = store.get('lang', (navigator.language || '').toLowerCase().startsWith('nl') ? 'nl' : 'en');
+let lvl = Math.min(store.get('level', 0), LEVELS.length - 1);
+let best = store.get('best', {});
+let S, history, moves, sel, born, hintIds, lastNote, busy = false, won = false;
+
+const $ = id => document.getElementById(id);
+const board = $('board'), note = $('note');
+const t = (k, p = {}) => { const q = { ...p, ...(p.extra || {}) }; return (I18N[lang][k] || k).replace(/\{(\w+)\}/g, (_, n) => q[n] ?? ''); };
+const snap = () => JSON.stringify({ S, moves });
+
+function say(key, p, type = 'info', raw) {
+  lastNote = { key, p, type, raw };
+  note.className = 'note ' + type;
+  note.innerHTML = raw ? raw[lang] : t(key, p);
+}
+function sayIntro() {
+  if (mode === 'practice') return say('ti_' + S.topic, {}, 'info');
+  say(null, null, 'info', { en: LEVELS[lvl].en, nl: LEVELS[lvl].nl });
+}
+const TOPICS = ['powers', 'like', 'frac', 'open', 'factor', 'mixed'];
+let mode = 'levels', initial = null, sheetFn = null;
+let prac = store.get('practice', { topics: ['powers', 'like', 'frac'], d: 1 });
+let session = { solved: 0, streak: 0 };
+function nextProblem() {
+  mode = 'practice';
+  S = makeProblem(prac.topics, prac.d);
+  initial = JSON.stringify(S);
+  history = []; moves = 0; sel = null; born = new Set(); hintIds = new Set(); won = false;
+  board.classList.remove('won');
+  render(); sayIntro();
+}
+function showPractice() {
+  sheetFn = showPractice;
+  const chips = TOPICS.map(tp => `<button type="button" class="pchip${prac.topics.includes(tp) ? ' on' : ''}" data-tp="${tp}" aria-pressed="${prac.topics.includes(tp)}">${t('tp_' + tp)}</button>`).join('');
+  const ds = [1, 2, 3].map(d => `<button type="button" class="pchip seg${prac.d === d ? ' on' : ''}" data-d="${d}" aria-pressed="${prac.d === d}">${t('d' + d)}</button>`).join('');
+  const host = openSheet(`<h2 style="font-size:1.6rem">${t('practiceTitle')}</h2><p>${t('practiceIntro')}</p>
+    <div class="plabel">${t('topics')}</div><div class="pchips">${chips}</div>
+    <div class="plabel">${t('difficulty')}</div><div class="pchips">${ds}</div>
+    <p class="pwarn" id="pWarn" hidden>${t('pickOne')}</p>
+    <div class="row" style="margin-top:18px"><button class="tool main" type="button" id="pStart">${t('start')} →</button></div>`);
+  host.querySelectorAll('[data-tp]').forEach(b => b.addEventListener('click', () => {
+    const tp = b.dataset.tp, on = prac.topics.includes(tp);
+    prac.topics = on ? prac.topics.filter(x => x !== tp) : [...prac.topics, tp];
+    b.classList.toggle('on', !on); b.setAttribute('aria-pressed', String(!on));
+  }));
+  host.querySelectorAll('[data-d]').forEach(b => b.addEventListener('click', () => {
+    prac.d = +b.dataset.d;
+    host.querySelectorAll('[data-d]').forEach(x => { const on = +x.dataset.d === prac.d; x.classList.toggle('on', on); x.setAttribute('aria-pressed', String(on)); });
+  }));
+  host.querySelector('#pStart').addEventListener('click', () => {
+    if (!prac.topics.length) { host.querySelector('#pWarn').hidden = false; return; }
+    store.set('practice', prac); session = { solved: 0, streak: 0 };
+    closeSheet(); nextProblem();
+  });
+}
+
+function loadLevel(i) {
+  mode = 'levels';
+  lvl = i; store.set('level', i);
+  S = buildLevel(i); history = []; moves = 0; sel = null; born = new Set(); hintIds = new Set(); won = false;
+  board.classList.remove('won');
+  render(); sayIntro();
+}
+
+function tileEl(f, partners) {
+  if (f.k === 'p') {
+    const b = document.createElement('div');
+    b.className = 'tile p'; b.dataset.id = f.id; b.tabIndex = 0; b.setAttribute('role', 'button');
+    b.setAttribute('aria-label', 'brackets');
+    const l = document.createElement('span'); l.className = 'paren'; l.textContent = '(';
+    const r = document.createElement('span'); r.className = 'paren'; r.textContent = ')';
+    b.append(l, sideEl(f.terms, partners), r);
+    if (sel && sel.t === 'f' && sel.id === f.id) b.classList.add('sel');
+    if (partners.has(f.id)) b.classList.add('partner');
+    if (hintIds.has(f.id)) b.classList.add('hint');
+    if (born.has(f.id)) b.classList.add('born');
+    return b;
+  }
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'tile ' + f.k; b.dataset.id = f.id;
+  if (f.k === 'n') { b.textContent = f.v; b.setAttribute('aria-label', String(f.v)); }
+  else if (f.k === 'v') {
+    b.style.setProperty('--c', `var(${VARCOL[f.b] || '--vz'})`);
+    b.innerHTML = `${f.b}${f.e > 1 ? `<sup>${f.e}</sup>` : ''}`;
+    b.setAttribute('aria-label', f.e > 1 ? `${f.b} to the power ${f.e}` : f.b);
+  } else {
+    const inner = f.f.map(m => {
+      const c = m.k === 'v' ? ` style="--c:var(${VARCOL[m.b] || '--vz'})"` : '';
+      return `<span class="mini ${m.k}"${c}>${m.k === 'n' ? m.v : m.b}${m.k === 'v' && m.e > 1 ? `<sup>${m.e}</sup>` : ''}</span>`;
+    }).join('');
+    b.innerHTML = `<span class="paren">(</span>${inner}<span class="paren">)</span>${f.e > 1 ? `<sup>${f.e}</sup>` : ''}`;
+    b.setAttribute('aria-label', 'bracket' + (f.e > 1 ? ` to the power ${f.e}` : ''));
+  }
+  if (sel && sel.t === 'f' && sel.id === f.id) b.classList.add('sel');
+  if (partners.has(f.id)) b.classList.add('partner');
+  if (hintIds.has(f.id)) b.classList.add('hint');
+  if (born.has(f.id)) { b.classList.add('born'); b.style.animationDelay = (born.idx++ * 35) + 'ms'; }
+  return b;
+}
+
+function sideEl(terms, partners) {
+  const d = document.createElement('div'); d.className = 'side';
+  terms.forEach((term, i) => {
+    if (i > 0 || term.neg) { const s = document.createElement('span'); s.className = 'sign'; s.textContent = term.neg ? '−' : '+'; d.append(s); }
+    const te = document.createElement('div');
+    te.className = 'term' + (terms.length === 1 ? ' solo' : '');
+    te.dataset.tid = term.id;
+    if (sel && sel.t === 't' && sel.id === term.id) te.classList.add('sel');
+    if (partners.has(term.id)) te.classList.add('partner');
+    if (hintIds.has(term.id)) te.classList.add('hint');
+    term.f.forEach((f, j) => {
+      if (j > 0) { const dot = document.createElement('span'); dot.className = 'dot'; te.append(dot); }
+      te.append(tileEl(f, partners));
+    });
+    d.append(te);
+  });
+  return d;
+}
+
+function render() {
+  const partners = partnersOf(S, sel);
+  born.idx = 0;
+  const wrap = document.createElement('div'); wrap.className = 'expr';
+  const stacked = S.parts.length > 1 && S.op === '/';
+  if (stacked) wrap.classList.add('stack');
+  S.parts.forEach((P, pi) => {
+    if (pi > 0) {
+      const op = document.createElement('button'); op.type = 'button'; op.dataset.op = '1';
+      op.className = stacked ? 'opchip bigbar' : 'opchip';
+      op.textContent = stacked ? '' : S.op;
+      op.setAttribute('aria-label', stacked ? 'fraction bar' : S.op === ':' ? 'divide' : 'times');
+      if (hintIds.has('op')) op.classList.add('hint');
+      wrap.append(op);
+    }
+    const fr = document.createElement('div'); fr.className = 'frac';
+    fr.append(sideEl(P.num, partners));
+    if (!isOne(P.den) || S.op === '·') {
+      let bar;
+      if (S.parts.length === 1) {
+        bar = document.createElement('button'); bar.type = 'button'; bar.className = 'bar fbar';
+        bar.setAttribute('aria-label', 'fraction bar');
+      } else { bar = document.createElement('div'); bar.className = 'bar'; }
+      fr.append(bar);
+      fr.append(sideEl(P.den, partners));
+    }
+    wrap.append(fr);
+  });
+  board.replaceChildren(wrap);
+  $('written').innerHTML = stateHTML(S);
+
+  // chrome
+  $('btnLevels').textContent = t('levels');
+  $('btnLang').textContent = lang === 'nl' ? 'EN' : 'NL';
+  $('btnRestart').textContent = t('restart');
+  $('brand').innerHTML = lang === 'nl' ? 'Algebra <span>Opruimen</span>' : 'Algebra <span>Cleanup</span>';
+  $('btnPractice').textContent = t('practice');
+  $('btnPractice').classList.toggle('on', mode === 'practice');
+  $('btnSkip').hidden = mode !== 'practice'; $('btnSkip').querySelector('span').textContent = t('newProblem');
+  if (mode === 'practice') {
+    $('lvlTitle').textContent = t('practiceTitle');
+    $('lvlBadge').hidden = false; $('lvlBadge').textContent = t('tp_' + S.topic) + ' · ' + t('d' + prac.d);
+    $('moves').innerHTML = t('solved', { n: session.solved }) + t('streak', { n: session.streak });
+  } else {
+    $('lvlTitle').textContent = t('level', { n: lvl + 1 });
+    $('lvlBadge').hidden = !LEVELS[lvl].book && LEVELS[lvl].goal !== 'factor'; $('lvlBadge').textContent = LEVELS[lvl].book ? t('book') : t('factorBadge');
+    $('moves').innerHTML = t('moves', { n: moves }) + (best[lvl] != null ? t('best', { n: best[lvl] }) : '');
+  }
+  $('writtenLabel').textContent = t('written');
+  $('btnUndo').querySelector('span').textContent = t('undo');
+  $('btnUndo').disabled = !history.length;
+  $('btnHint').querySelector('span').textContent = t('hint');
+  const fSel = sel && sel.t === 'f', tSel = sel && sel.t === 't';
+  $('btnExplode').hidden = !fSel; $('btnExplode').querySelector('span').textContent = t('explode');
+  let gatherable = false;
+  if (fSel) { const L = locate(S, sel.id); gatherable = L.term.f.filter(f => canMerge(L.f, f)).length >= 3; }
+  $('btnGather').hidden = !gatherable; $('btnGather').querySelector('span').textContent = t('gather');
+  $('btnSplit').hidden = !tSel; $('btnSplit').querySelector('span').textContent = t('split');
+  document.documentElement.lang = lang;
+}
+
+/* ---- motion: every tile travels from where it was; new pieces fly in from their sources along arcs ---- */
+const reduceMotion = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function tileRects() {
+  const m = new Map();
+  board.querySelectorAll('.tile[data-id]').forEach(el => m.set(+el.dataset.id, el.getBoundingClientRect()));
+  return m;
+}
+function animateMoves(rects, origins, arcs) {
+  if (reduceMotion() || !board.animate) return 0;
+  const br = board.getBoundingClientRect();
+  const moving = new Set();
+  let longest = 0, flight = 0;
+  const svg = document.createElementNS(SVGNS, 'svg'); svg.setAttribute('class', 'paths'); board.append(svg);
+  board.querySelectorAll('.tile[data-id]').forEach(el => {
+    const parent = el.parentElement.closest('.tile.p');
+    if (parent && moving.has(parent)) return;
+    const id = +el.dataset.id, to = el.getBoundingClientRect();
+    const src = origins[id] ? origins[id].filter(s => rects.has(s)) : rects.has(id) ? [id] : [];
+    src.forEach((sid, k) => {
+      const from = rects.get(sid);
+      const dist = Math.hypot(from.left - to.left, from.top - to.top);
+      if (dist < 2 && Math.abs(from.width - to.width) < 2) return;
+      const isNew = !!origins[id];
+      const lift = isNew || (arcs && dist > 40) || dist > 140 ? Math.min(150, 34 + dist * 0.45) * (isNew && flight++ % 2 ? -1 : 1) : 0;
+      const target = k === 0 ? el : ghostOf(el, to, br);
+      const dur = isNew ? 700 : 520;
+      fly(target, from, to, lift, dur, k > 0);
+      if (k === 0) moving.add(el);
+      if (isNew && dist > 50) trail(svg, from, to, lift, br, dur);
+      longest = Math.max(longest, dur);
+    });
+  });
+  setTimeout(() => svg.remove(), longest + 500);
+  return longest;
+}
+const mid = r => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+function ghostOf(el, to, br) {
+  const g = el.cloneNode(true);
+  g.classList.remove('born', 'sel', 'partner', 'hint');
+  g.classList.add('ghost');
+  Object.assign(g.style, { left: to.left - br.left + 'px', top: to.top - br.top + 'px', width: to.width + 'px', height: to.height + 'px' });
+  board.append(g);
+  return g;
+}
+function fly(el, from, to, lift, dur, isGhost) {
+  const p0 = mid(from), p1 = mid(to);
+  const c = { x: (p0.x + p1.x) / 2, y: (lift >= 0 ? Math.min(p0.y, p1.y) : Math.max(p0.y, p1.y)) - lift };
+  const s0 = Math.min(2, Math.max(.4, from.width / to.width));
+  const frames = [];
+  for (let i = 0; i <= 16; i++) {
+    const t = i / 16, u = 1 - t;
+    const x = u * u * p0.x + 2 * u * t * c.x + t * t * p1.x, y = u * u * p0.y + 2 * u * t * c.y + t * t * p1.y;
+    const s = s0 + (1 - s0) * t;
+    frames.push({ transform: `translate(${x - p1.x}px, ${y - p1.y}px) scale(${s})`, opacity: isGhost && t > .8 ? (1 - t) * 5 : 1 });
+  }
+  el.style.zIndex = 7;
+  const a = el.animate(frames, { duration: dur, easing: 'cubic-bezier(.45,0,.25,1)' });
+  a.onfinish = a.oncancel = () => { if (isGhost) el.remove(); else el.style.zIndex = ''; };
+}
+function trail(svg, from, to, lift, br, dur) {
+  const p0 = mid(from), p1 = mid(to);
+  const c = { x: (p0.x + p1.x) / 2, y: (lift >= 0 ? Math.min(p0.y, p1.y) : Math.max(p0.y, p1.y)) - lift };
+  const path = document.createElementNS(SVGNS, 'path');
+  path.setAttribute('d', `M${p0.x - br.left},${p0.y - br.top} Q${c.x - br.left},${c.y - br.top} ${p1.x - br.left},${p1.y - br.top}`);
+  svg.append(path);
+  const len = path.getTotalLength ? path.getTotalLength() : 300;
+  path.style.strokeDasharray = len; path.style.strokeDashoffset = len;
+  path.animate([{ strokeDashoffset: len, opacity: 1 }, { strokeDashoffset: 0, opacity: 1, offset: .7 }, { strokeDashoffset: 0, opacity: 0 }],
+    { duration: dur + 450, easing: 'ease-out', fill: 'forwards' });
+}
+
+function shake(ids) {
+  requestAnimationFrame(() => ids.forEach(id => {
+    const e = board.querySelector(`[data-id="${id}"],[data-tid="${id}"]`);
+    if (e) { e.classList.remove('shake'); void e.offsetWidth; e.classList.add('shake'); }
+  }));
+}
+
+function run(fn, animIds) {
+  if (busy || won) return;
+  const rects = tileRects();
+  const before = snap();
+  const r = fn(S);
+  if (!r) return false;
+  if (r.no) {
+    S = JSON.parse(before).S; // ensure untouched
+    sel = null; hintIds = new Set(); born = new Set();
+    render(); say(r.no, r.p, 'warn'); shake(r.ids || []);
+    return true;
+  }
+  const finish = () => {
+    history.push(before); moves++; normalize(S);
+    // only bracket moves (putting outside brackets, opening brackets) travel along arcs; everything else just pops
+    const origins = r.arcs ? r.origins || {} : {};
+    sel = null; hintIds = new Set(); born = new Set((r.born || []).filter(id => !(id in origins)));
+    render(); say(r.ok, r.p, 'ok');
+    const ms = r.arcs ? animateMoves(rects, origins, true) : 0;
+    busy = ms > 0;
+    setTimeout(() => { busy = false; if (isClean(S)) win(); }, ms);
+  };
+  if (r.cancel && animIds) {
+    busy = true;
+    animIds.forEach(id => board.querySelector(`[data-id="${id}"]`)?.classList.add('vanish'));
+    setTimeout(finish, 380);
+  } else finish();
+  return true;
+}
+
+function onFactor(id) {
+  if (sel && sel.t === 'f' && sel.id === id) { run(s => opExplode(s, id)); return; }
+  if (sel && sel.t === 'f') {
+    const a = sel.id;
+    if (run(s => opPair(s, a, id), [a, id])) return;
+  }
+  select({ t: 'f', id });
+}
+function onTerm(tid) {
+  if (sel && sel.t === 't' && sel.id === tid) { sel = null; render(); return; }
+  if (sel && sel.t === 't') { const a = sel.id; run(s => termPair(s, a, tid)); return; }
+  select({ t: 't', id: tid });
+}
+function select(s) {
+  sel = s; hintIds = new Set(); born = new Set();
+  render();
+  const has = partnersOf(S, sel).size > 0;
+  say(s.t === 'f' ? (has ? 'pickedP' : 'picked') : (has ? 'pickedTermP' : 'pickedTerm'), {}, 'info');
+}
+
+let drag = null, suppressClick = false;
+const SVGNS = 'http://www.w3.org/2000/svg';
+function tileAt(x, y) {
+  const el = document.elementFromPoint(x, y);
+  const t = el && el.closest('#board .tile');
+  return t && !t.classList.contains('p') ? t : null;
+}
+function clearSweep() {
+  if (drag && drag.svg) drag.svg.remove();
+  board.querySelectorAll('.swept').forEach(el => el.classList.remove('swept'));
+}
+board.addEventListener('pointerdown', e => {
+  if (busy || won || e.button > 0) return;
+  drag = { x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, id: e.pointerId, active: false, ids: [], pts: [] };
+});
+board.addEventListener('pointermove', e => {
+  if (!drag || e.pointerId !== drag.id) return;
+  if (!drag.active) {
+    if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 10) return;
+    drag.active = true;
+    try { board.setPointerCapture(e.pointerId); } catch {}
+    const svg = document.createElementNS(SVGNS, 'svg'); svg.setAttribute('class', 'trail');
+    const line = document.createElementNS(SVGNS, 'polyline'); svg.append(line);
+    board.append(svg); drag.svg = svg; drag.line = line;
+    sample(drag.x, drag.y);
+  }
+  // sample along the segment so fast swipes don't skip tiles
+  const steps = Math.max(1, Math.ceil(Math.hypot(e.clientX - drag.lx, e.clientY - drag.ly) / 8));
+  for (let i = 1; i <= steps; i++) sample(drag.lx + (e.clientX - drag.lx) * i / steps, drag.ly + (e.clientY - drag.ly) * i / steps);
+  drag.lx = e.clientX; drag.ly = e.clientY;
+});
+function sample(x, y) {
+  const br = board.getBoundingClientRect();
+  drag.pts.push(`${x - br.left},${y - br.top}`);
+  drag.line.setAttribute('points', drag.pts.join(' '));
+  const t = tileAt(x, y);
+  if (t && !drag.ids.includes(+t.dataset.id)) { drag.ids.push(+t.dataset.id); t.classList.add('swept'); }
+}
+const endDrag = e => {
+  if (!drag || e.pointerId !== drag.id) return;
+  const d = drag;
+  if (!d.active) { drag = null; return; }
+  suppressClick = true; setTimeout(() => { suppressClick = false; }, 0);
+  clearSweep(); drag = null;
+  if (d.ids.length >= 2) run(s => opSweep(s, d.ids));
+  else if (d.ids.length === 1) select({ t: 'f', id: d.ids[0] });
+};
+board.addEventListener('pointerup', endDrag);
+board.addEventListener('pointercancel', () => { clearSweep(); drag = null; });
+
+board.addEventListener('click', e => {
+  if (suppressClick) { suppressClick = false; return; }
+  if (busy || won) return;
+  if (e.target.closest('.opchip')) return run(s => opOp(s));
+  if (e.target.closest('.fbar')) return run(s => opBar(s));
+  const hit = e.target.closest('.tile, .term');
+  if (hit && hit.classList.contains('tile')) return onFactor(+hit.dataset.id);
+  if (hit) return onTerm(+hit.dataset.tid);
+  if (sel) { sel = null; render(); }
+});
+
+$('btnExplode').onclick = () => sel && run(s => opExplode(s, sel.id));
+$('btnGather').onclick = () => sel && run(s => opGather(s, sel.id));
+$('btnSplit').onclick = () => sel && run(s => opSplit(s, sel.id));
+$('btnUndo').onclick = () => {
+  if (!history.length || busy) return;
+  const prev = JSON.parse(history.pop()); S = prev.S; moves = prev.moves;
+  sel = null; born = new Set(); hintIds = new Set(); won = false; board.classList.remove('won');
+  render(); say(null, null, 'info', { en: 'One step back.', nl: 'Eén stap terug.' });
+};
+$('btnHint').onclick = () => {
+  if (won) return;
+  const h = hint(S); sel = null; born = new Set(); hintIds = new Set(h.ids); render(); say(h.k, h.p, 'info');
+};
+$('btnRestart').onclick = () => {
+  if (mode !== 'practice') return loadLevel(lvl);
+  closeSheet(); S = JSON.parse(initial); history = []; moves = 0; sel = null; born = new Set(); hintIds = new Set(); won = false;
+  board.classList.remove('won'); render(); sayIntro();
+};
+$('btnPractice').onclick = showPractice;
+$('btnSkip').onclick = () => { if (busy) return; session.streak = 0; nextProblem(); say('skipped', {}, 'info'); };
+$('btnLang').onclick = () => {
+  lang = lang === 'nl' ? 'en' : 'nl'; store.set('lang', lang); render();
+  if (lastNote) say(lastNote.key, lastNote.p, lastNote.type, lastNote.raw);
+  if (won) win(true);
+  else if (sheetFn && $('sheetHost').children.length) sheetFn();
+};
+$('btnLevels').onclick = () => showLevels();
+board.addEventListener('keydown', e => {
+  const p = e.target.closest && e.target.closest('.tile.p');
+  if (p && e.target === p && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onFactor(+p.dataset.id); }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeSheet();
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); $('btnUndo').click(); }
+});
+
+function closeSheet() { $('sheetHost').replaceChildren(); sheetFn = null; }
+function openSheet(html) {
+  const host = $('sheetHost');
+  host.innerHTML = `<div class="scrim"><div class="sheet" role="dialog" aria-modal="true">${html}</div></div>`;
+  host.querySelector('.scrim').addEventListener('click', e => { if (e.target.classList.contains('scrim') && !won) closeSheet(); });
+  return host;
+}
+
+function win(refresh) {
+  won = true;
+  if (mode === 'practice') {
+    if (!refresh) { session.solved++; session.streak++; store.set('solvedTotal', store.get('solvedTotal', 0) + 1); board.classList.add('won'); render(); }
+    const show = () => {
+      const host = openSheet(`
+        <h2>${t('win')}</h2>
+        <p style="margin-bottom:0">${t(S.goal === 'factor' ? 'winSubF' : 'winSub')}</p>
+        <div class="result expr-n">${stateHTML(S)}</div>
+        <p>${t('winMoves', { n: moves })} ${t('winPractice', { n: session.solved })}</p>
+        <div class="row">
+          <button class="tool main" type="button" id="wNext">${t('nextProblem')} →</button>
+          <button class="tool" type="button" id="wTopics">${t('changeTopics')}</button>
+        </div>`);
+      host.querySelector('#wNext').addEventListener('click', () => { closeSheet(); nextProblem(); });
+      host.querySelector('#wTopics').addEventListener('click', () => { closeSheet(); won = false; showPractice(); });
+      host.querySelector('#wNext').focus();
+    };
+    refresh ? show() : setTimeout(show, 650);
+    return;
+  }
+  if (!refresh) {
+    if (best[lvl] == null || moves < best[lvl]) { best[lvl] = moves; store.set('best', best); }
+    board.classList.add('won'); render();
+  }
+  const last = lvl === LEVELS.length - 1;
+  const show = () => {
+    const host = openSheet(`
+      <h2>${t('win')}</h2>
+      <p style="margin-bottom:0">${t(S.goal === 'factor' ? 'winSubF' : 'winSub')}</p>
+      <div class="result expr-n">${stateHTML(S)}</div>
+      <p>${t('winMoves', { n: moves })}${t('winBest', { n: best[lvl] })}${last ? ' ' + t('allDone') : ''}</p>
+      <div class="row">
+        ${last ? '' : `<button class="tool main" type="button" id="wNext">${t('next')} →</button>`}
+        <button class="tool" type="button" id="wReplay">${t('replay')}</button>
+        <button class="tool" type="button" id="wLevels">${t('levels')}</button>
+      </div>`);
+    host.querySelector('#wNext')?.addEventListener('click', () => { closeSheet(); loadLevel(lvl + 1); });
+    host.querySelector('#wReplay').addEventListener('click', () => { closeSheet(); loadLevel(lvl); });
+    host.querySelector('#wLevels').addEventListener('click', () => { closeSheet(); won = false; showLevels(); });
+    (host.querySelector('#wNext') || host.querySelector('#wReplay')).focus();
+  };
+  refresh ? show() : setTimeout(show, 650);
+}
+
+function showLevels() {
+  sheetFn = showLevels;
+  const btns = LEVELS.map((L, i) => `<button type="button" class="lvlbtn${best[i] != null ? ' done' : ''}${i === lvl ? ' cur' : ''}${L.book ? ' book' : ''}" data-l="${i}">
+      ${best[i] != null ? '✓ ' : ''}${i + 1}<small>${L.book ? t('book') : L.goal === 'factor' ? t('factorBadge') : best[i] != null ? t('best', { n: best[i] }).replace(' · ', '') : '&nbsp;'}</small></button>`).join('');
+  const host = openSheet(`<h2 style="font-size:1.6rem">${t('chooseLevel')}</h2><div class="lvlgrid">${btns}</div>`);
+  host.querySelectorAll('.lvlbtn').forEach(b => b.addEventListener('click', () => { closeSheet(); loadLevel(+b.dataset.l); }));
+}
+
+loadLevel(lvl);
+</script>
+</body>
+</html>
