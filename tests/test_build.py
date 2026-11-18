@@ -1,6 +1,7 @@
 """build.py logic: metadata parsing, backlink injection, thumbnail planning, site output. No browser."""
 
 import json
+import shutil
 
 import build
 import pytest
@@ -19,6 +20,7 @@ def repo(tmp_path, monkeypatch):
     (tmp_path / "pages").mkdir()
     (tmp_path / "thumbs").mkdir()
     (tmp_path / "index.template.html").write_text("<script>const D = /*DOODLES*/[];</script>")
+    shutil.copy(build.ROOT / "sw.template.js", tmp_path)
     monkeypatch.setattr(build, "ROOT", tmp_path)
     monkeypatch.setattr(build, "PAGES", tmp_path / "pages")
     monkeypatch.setattr(build, "THUMBS", tmp_path / "thumbs")
@@ -114,6 +116,7 @@ def test_write_site(repo, tmp_path):
     assert (out / "thumbs" / "one.jpg").exists()
     assert "<doodles-backlink>" in (out / "pages" / "one.html").read_text()
     assert "<doodles-backlink>" not in (repo / "pages" / "one.html").read_text()  # source untouched
+    assert '"pages/one.html"' in (out / "sw.js").read_text()  # precached
 
 
 def test_lint_doodles(repo):

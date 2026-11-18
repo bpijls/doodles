@@ -28,6 +28,13 @@ The portal card uses, from the page itself:
 Every doodle gets a small "← doodles" link back to the portal in the bottom-left corner. It is added
 at build time; the files in `pages/` stay exactly as you downloaded them.
 
+## App
+
+The portal is a progressive web app: an **Install** button appears in the header in browsers that support it
+(Chrome, Edge, Android; on iOS use *Share → Add to Home Screen*). After the first visit the portal and every
+doodle work offline; doodles that load libraries from a CDN need to have been opened once while online.
+New doodles show up on the next visit. Icons: `icons/`, regenerate with `.venv/bin/python scripts/icons.py`.
+
 ## Thumbnails
 
 New doodles get a screenshot thumbnail automatically: the deploy makes one for every doodle that doesn't

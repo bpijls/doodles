@@ -31,6 +31,8 @@ uv venv && uv pip install -r requirements-dev.txt && .venv/bin/playwright instal
 
 - `tests/test_build.py` — build.py logic against a fake pages/ tree (no browser).
 - `tests/test_portal.py` — the portal in headless Chromium: cards, thumbnails, filter, tags, phone layout.
+- `tests/test_pwa.py` — manifest + icon sizes, precache = every built file, version follows content,
+  Chromium's own installability check (CDP), portal and every doodle load with the network offline.
 - `tests/test_doodles.py` — **parametrised over every doodle**: no uncaught JS errors in the first 2 s, no
   missing local files, backlink visible bottom-left and returning to `/`, backlink gone inside an iframe.
 - Doodle lint (`lint_doodles`) only warns: missing title / description / viewport / doctype.
@@ -40,9 +42,14 @@ uv venv && uv pip install -r requirements-dev.txt && .venv/bin/playwright instal
 
 ```
 pages/                    one doodle per <slug>.html, or <slug>/index.html for multi-file ones
-index.template.html       portal page; build.py replaces the `/*DOODLES*/[]` marker with the JSON list
+index.template.html       portal page; build.py replaces the `/*DOODLES*/[]` marker with the JSON list;
+                          registers sw.js, shows the Install button (beforeinstallprompt) and an offline note
+manifest.webmanifest      PWA manifest (copied into _site/)
+sw.template.js            service worker; build.py fills /*VERSION*/ (content hash) and /*PRECACHE*/[]
+icons/                    PWA icons (192/512, maskable 512, apple-touch 180), rendered by scripts/icons.py
 scripts/build.py          scans pages/, reads <title>, meta description/keywords, git first-commit date;
                           injects the back-to-portal link into each doodle in _site/
+scripts/icons.py          renders icons/*.png from the favicon design with Playwright (run by hand)
 scripts/thumbs.py         Playwright capture: serves pages/ locally, 1200x750 layout -> 600x375 JPEG
 tests/                    pytest suite; conftest builds the site into a temp dir and serves it
 ruff.toml, pytest.ini     lint (line length 120) and test config
@@ -71,3 +78,9 @@ CNAME                     doodles.feib.nl (copied into _site/)
   it installs Playwright only when `--plan` says something is needed. Thumbnails of removed doodles are
   deleted by the build. Shots come from `pages/` (no injected backlink), light color scheme.
 - Because CI commits to main, pull before pushing (add.sh does).
+- PWA: `sw.js` precaches everything in `_site/` on install and is re-versioned by a hash of the built files,
+  so every deploy that changes anything installs a new cache (skipWaiting + clients.claim) and deletes the
+  old one. HTML/JSON is network-first (fresh online, cached offline); other same-origin files are
+  stale-while-revalidate. Cross-origin **scripts/styles/fonts/images only** go in a runtime cache (max 150)
+  so CDN-based doodles work offline after one visit; other cross-origin requests (APIs) are not touched.
+  Unknown pages offline fall back to the cached portal.

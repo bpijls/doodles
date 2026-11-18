@@ -13,6 +13,7 @@ everything else is stdlib, and without Playwright the build still works, just wi
 """
 
 import argparse
+import hashlib
 import html
 import json
 import os
@@ -188,13 +189,31 @@ def write_site(entries: list[dict], out: Path) -> None:
         add_backlink(href / "index.html" if e["href"].endswith("/") else href)
     if THUMBS.exists():
         shutil.copytree(THUMBS, out / "thumbs")
-    for extra in ("CNAME", "favicon.svg"):
+    for extra in ("CNAME", "favicon.svg", "manifest.webmanifest"):
         if (ROOT / extra).exists():
             shutil.copy(ROOT / extra, out / extra)
+    if (ROOT / "icons").exists():
+        shutil.copytree(ROOT / "icons", out / "icons")
     (out / "doodles.json").write_text(json.dumps(entries, indent=2))
     template = (ROOT / "index.template.html").read_text(encoding="utf-8")
     data = json.dumps(entries).replace("</", "<\\/")
     (out / "index.html").write_text(template.replace("/*DOODLES*/[]", data), encoding="utf-8")
+    write_service_worker(out)
+
+
+def write_service_worker(out: Path) -> None:
+    """sw.js from sw.template.js: precache every built file, versioned by a hash of their contents."""
+    files = sorted(p for p in out.rglob("*") if p.is_file() and p.name not in ("sw.js", "CNAME"))
+    digest = hashlib.sha256()
+    urls = []
+    for f in files:
+        rel = f.relative_to(out).as_posix()
+        digest.update(rel.encode() + b"\0" + f.read_bytes())
+        # A directory's index.html is requested as the directory ("./", "pages/x/").
+        urls.append("./" + rel.removesuffix("index.html") if f.name == "index.html" else rel)
+    sw = (ROOT / "sw.template.js").read_text(encoding="utf-8")
+    sw = sw.replace("/*VERSION*/", digest.hexdigest()[:12]).replace("/*PRECACHE*/[]", json.dumps(urls))
+    (out / "sw.js").write_text(sw, encoding="utf-8")
 
 
 def lint_doodles(entries: list[dict]) -> list[str]:
